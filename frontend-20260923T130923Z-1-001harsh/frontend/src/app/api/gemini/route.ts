@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-// Ensure this route is never statically cached
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic";
 
 // Active Gemini Flash models supported on Google AI Studio
 const GEMINI_MODELS = [

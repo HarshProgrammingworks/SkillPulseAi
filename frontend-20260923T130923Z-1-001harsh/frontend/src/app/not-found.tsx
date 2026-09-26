@@ -9,7 +9,10 @@ export default function NotFound() {
     if (typeof window !== "undefined") {
       const path = window.location.pathname.toLowerCase();
       if (path.includes("quality") || path.includes("data-quality")) {
-        window.location.replace("/SkillPulseAi/?tab=quality");
+        const target = window.location.pathname.startsWith("/SkillPulseAi")
+          ? "/SkillPulseAi/?tab=quality"
+          : "/?tab=quality";
+        window.location.replace(target);
       }
     }
   }, []);

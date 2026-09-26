@@ -4,8 +4,11 @@ import { useEffect } from "react";
 
 export default function QualityRoute() {
   useEffect(() => {
-    // Seamlessly redirect to the root page with the quality tab active
-    window.location.replace("/SkillPulseAi/?tab=quality");
+    // Seamlessly redirect to the root page with the quality tab active (works on both Vercel and GitHub Pages)
+    const target = window.location.pathname.startsWith("/SkillPulseAi")
+      ? "/SkillPulseAi/?tab=quality"
+      : "/?tab=quality";
+    window.location.replace(target);
   }, []);
 
   return (

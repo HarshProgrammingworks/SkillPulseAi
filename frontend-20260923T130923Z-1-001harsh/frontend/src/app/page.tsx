@@ -1016,6 +1016,24 @@ export default function Home() {
             setShowAddTrainee(false);
             showToast(`${created.name} was added to the trainee directory.`);
             loadTrainees();
+            const [kpiData, cData] = await Promise.all([
+              api.getKpis({
+                district: dashboardFilters.district,
+                state: dashboardFilters.state,
+                programme: dashboardFilters.programme,
+                batch: dashboardFilters.batch,
+                status: dashboardFilters.status
+              }),
+              api.getChartsData({
+                district: dashboardFilters.district,
+                state: dashboardFilters.state,
+                programme: dashboardFilters.programme,
+                batch: dashboardFilters.batch,
+                status: dashboardFilters.status
+              })
+            ]);
+            if (kpiData) setKpis(kpiData);
+            if (cData) setChartsData(cData);
           }}
         />
       )}

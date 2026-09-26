@@ -106,6 +106,7 @@ export interface Trainee {
   wage_history: { stage: string; wage: number; date?: string }[];
   employment_duration_months: number;
   retention_status: RetentionStatus;
+  retention_milestone?: string;
   retention_risk: "Low" | "Medium" | "High";
   skill_relevance: string;
   current_location: string;

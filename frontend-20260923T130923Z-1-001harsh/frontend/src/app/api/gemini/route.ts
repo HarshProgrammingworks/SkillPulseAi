@@ -5,10 +5,12 @@ import { GoogleGenAI } from "@google/genai";
 
 // Active Gemini Flash models supported on Google AI Studio
 const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-flash-latest",
   "gemini-3.6-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.8-flash",
-  "gemini-flash-latest"
+  "gemini-3.5-flash-lite"
 ];
 
 export async function POST(req: NextRequest) {

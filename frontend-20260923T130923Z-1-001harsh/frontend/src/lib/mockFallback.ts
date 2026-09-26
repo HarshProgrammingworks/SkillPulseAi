@@ -125,21 +125,6 @@ export const mockFallback = {
       }
     }
 
-    const hasFilter = Boolean(
-      params && (
-        (params.state && !params.state.startsWith("All")) ||
-        (params.district && !params.district.startsWith("All")) ||
-        (params.programme && !params.programme.startsWith("All")) ||
-        (params.batch && !params.batch.startsWith("All")) ||
-        (params.status && !params.status.startsWith("All")) ||
-        (params.skill && !params.skill.startsWith("All"))
-      )
-    );
-
-    if (!hasFilter) {
-      return mockData.kpis_default;
-    }
-
     const total = items.length;
     const certified = items.filter((t) => (t.certification_status || "").toLowerCase() === "certified").length;
     const employed = items.filter((t) => t.employment_status === "Employed").length;
@@ -151,6 +136,9 @@ export const mockFallback = {
     const working = items.filter((t) => t.current_wage && t.current_wage > 0);
     const avgWage = working.length > 0 ? Math.round(working.reduce((acc, t) => acc + (t.current_wage || 0), 0) / working.length) : 21890;
 
+    const retained6mCount = items.filter((t) => (t.retention_milestone === "6M" || (t.retention_status || "").includes("Retained"))).length;
+    const retentionRate6m = total > 0 ? (Math.round((retained6mCount / total) * 1000) / 10).toFixed(1) + "%" : "80.8%";
+
     return {
       total_trainees: { value: total, prev: Math.round(total * 0.92), change_pct: 8.7, trend: "up", tooltip: "Active filtered trainees across verified cohorts." },
       certified: { value: certified, prev: Math.round(certified * 0.94), change_pct: 6.4, trend: "up", tooltip: "Certified by State Vocational Examination Boards." },
@@ -158,7 +146,7 @@ export const mockFallback = {
       self_employed: { value: selfEmployed, prev: Math.max(0, selfEmployed - 2), change_pct: 4.2, trend: "up", tooltip: "Verified micro-entrepreneurs & independent service contractors." },
       apprentices: { value: apprentices, prev: Math.max(0, apprentices - 2), change_pct: 7.5, trend: "up", tooltip: "Engaged under National Apprenticeship Promotion Scheme (NAPS)." },
       employment_rate: { value: employmentRate, prev: "79.5%", change_pct: 2.8, trend: "up", tooltip: "(Employed + Self-Employed + Apprentices) / Certified." },
-      retention_6m: { value: "88.8%", prev: "86.4%", change_pct: 2.4, trend: "up", tooltip: "Proportion of placed candidates continuously engaged at 6 months." },
+      retention_6m: { value: retentionRate6m, prev: "78.4%", change_pct: 2.4, trend: "up", tooltip: "Proportion of placed candidates continuously engaged at 6 months." },
       retention_3m: { value: "97.6%", prev: "0%", change_pct: 0, trend: "flat", tooltip: "Share of placed trainees confirmed at 3 months." },
       retention_9m: { value: "49.5%", prev: "0%", change_pct: 0, trend: "flat", tooltip: "Share of placed trainees confirmed at 9 months." },
       retention_12m: { value: "34.8%", prev: "0%", change_pct: 0, trend: "flat", tooltip: "Share of placed trainees confirmed at 12 months." },
@@ -216,18 +204,30 @@ export const mockFallback = {
       { name: "Unknown / Insufficient", value: outcomesCount["Unknown / Insufficient"], color: "#9CA3AF" }
     ];
 
-    // Ensure all 9 districts are ALWAYS present in benchmarks so District Performance Benchmark displays completely!
-    const allDistricts = [
-      { district: "Gaya", trainees: 400, employment_rate: 80.2, retention_6m: 78.2, avg_wage: 21029 },
-      { district: "Lucknow", trainees: 400, employment_rate: 82.2, retention_6m: 79.3, avg_wage: 22730 },
-      { district: "Muzaffarpur", trainees: 400, employment_rate: 84.8, retention_6m: 80.8, avg_wage: 21374 },
-      { district: "Nagpur", trainees: 400, employment_rate: 79.5, retention_6m: 81.1, avg_wage: 22714 },
-      { district: "Nashik", trainees: 400, employment_rate: 82.2, retention_6m: 81.2, avg_wage: 21067 },
-      { district: "Patna", trainees: 400, employment_rate: 83.8, retention_6m: 78.2, avg_wage: 22610 },
-      { district: "Prayagraj", trainees: 400, employment_rate: 81.5, retention_6m: 76.1, avg_wage: 21084 },
-      { district: "Pune", trainees: 400, employment_rate: 80.2, retention_6m: 81.6, avg_wage: 23346 },
-      { district: "Varanasi", trainees: 400, employment_rate: 82.2, retention_6m: 81.8, avg_wage: 21090 }
-    ];
+    // Ensure all 9 districts are computed dynamically from actual trainee data
+    const allDistNames = ["Gaya", "Lucknow", "Muzaffarpur", "Nagpur", "Nashik", "Patna", "Prayagraj", "Pune", "Varanasi"];
+    const allTrainees: Trainee[] = mockData.trainees || [];
+    const allDistricts = allDistNames.map((dst) => {
+      const dItems = allTrainees.filter((t) => (t.district || "").toLowerCase() === dst.toLowerCase());
+      const dTotal = dItems.length;
+      const dCert = dItems.filter((t) => (t.certification_status || "").toLowerCase() === "certified").length;
+      const dEmp = dItems.filter((t) => t.employment_status === "Employed").length;
+      const dSelf = dItems.filter((t) => t.employment_status === "Self-Employed").length;
+      const dApp = dItems.filter((t) => t.employment_status === "Apprenticeship").length;
+      const dActive = dEmp + dSelf + dApp;
+      const empRate = dCert > 0 ? Math.round((dActive / dCert) * 1000) / 10 : 81.5;
+      const ret6mCount = dItems.filter((t) => t.retention_milestone === "6M" || (t.retention_status || "").includes("Retained")).length;
+      const retRate = dTotal > 0 ? Math.round((ret6mCount / dTotal) * 1000) / 10 : 80.5;
+      const workingCohort = dItems.filter((t) => t.current_wage && t.current_wage > 0);
+      const avgW = workingCohort.length > 0 ? Math.round(workingCohort.reduce((acc, t) => acc + (t.current_wage || 0), 0) / workingCohort.length) : 21500;
+      return {
+        district: dst,
+        trainees: dTotal,
+        employment_rate: empRate,
+        retention_6m: retRate,
+        avg_wage: avgW
+      };
+    });
 
     const targetDist = params?.district && !params.district.startsWith("All") ? params.district.toLowerCase() : "";
     const district_benchmarks = allDistricts.map((d) => ({
@@ -1018,25 +1018,37 @@ export const mockFallback = {
   },
 
   geo: (params?: { state?: string; skill?: string }) => {
-    const rawDistricts = [
-      { state: "Bihar", district: "Muzaffarpur", trainees: 400, employed: 339, training_centres: 8, job_openings: 14, demand: "High" },
-      { state: "Bihar", district: "Patna", trainees: 400, employed: 335, training_centres: 12, job_openings: 22, demand: "High" },
-      { state: "Bihar", district: "Gaya", trainees: 400, employed: 321, training_centres: 7, job_openings: 9, demand: "Medium" },
-      { state: "Uttar Pradesh", district: "Lucknow", trainees: 400, employed: 329, training_centres: 14, job_openings: 28, demand: "High" },
-      { state: "Uttar Pradesh", district: "Varanasi", trainees: 400, employed: 329, training_centres: 10, job_openings: 16, demand: "High" },
-      { state: "Uttar Pradesh", district: "Prayagraj", trainees: 400, employed: 326, training_centres: 9, job_openings: 11, demand: "Medium" },
-      { state: "Maharashtra", district: "Pune", trainees: 400, employed: 321, training_centres: 18, job_openings: 42, demand: "High" },
-      { state: "Maharashtra", district: "Nashik", trainees: 400, employed: 329, training_centres: 11, job_openings: 19, demand: "High" },
-      { state: "Maharashtra", district: "Nagpur", trainees: 400, employed: 318, training_centres: 13, job_openings: 24, demand: "High" }
+    const rawDistrictsMeta = [
+      { state: "Bihar", district: "Muzaffarpur", training_centres: 8, job_openings: 14, demand: "High" },
+      { state: "Bihar", district: "Patna", training_centres: 12, job_openings: 22, demand: "High" },
+      { state: "Bihar", district: "Gaya", training_centres: 7, job_openings: 9, demand: "Medium" },
+      { state: "Uttar Pradesh", district: "Lucknow", training_centres: 14, job_openings: 28, demand: "High" },
+      { state: "Uttar Pradesh", district: "Varanasi", training_centres: 10, job_openings: 16, demand: "High" },
+      { state: "Uttar Pradesh", district: "Prayagraj", training_centres: 9, job_openings: 11, demand: "Medium" },
+      { state: "Maharashtra", district: "Pune", training_centres: 18, job_openings: 42, demand: "High" },
+      { state: "Maharashtra", district: "Nashik", training_centres: 11, job_openings: 19, demand: "High" },
+      { state: "Maharashtra", district: "Nagpur", training_centres: 13, job_openings: 24, demand: "High" }
     ];
 
-    let items = rawDistricts;
+    const allTrainees: Trainee[] = mockData.trainees || [];
+    const items = rawDistrictsMeta.map((meta) => {
+      const dItems = allTrainees.filter((t) => (t.district || "").toLowerCase() === meta.district.toLowerCase());
+      const traineesCount = dItems.length || 400;
+      const employedCount = dItems.filter((t) => t.employment_status === "Employed" || t.employment_status === "Self-Employed" || t.employment_status === "Apprenticeship").length || Math.round(traineesCount * 0.81);
+      return {
+        ...meta,
+        trainees: traineesCount,
+        employed: employedCount
+      };
+    });
+
+    let filtered = items;
     if (params?.state && !params.state.startsWith("All")) {
-      items = items.filter((d) => d.state.toLowerCase() === params.state!.toLowerCase());
+      filtered = filtered.filter((d) => d.state.toLowerCase() === params.state!.toLowerCase());
     }
     return {
       notice: "Cross-district longitudinal geography intelligence across Bihar, UP, and Maharashtra.",
-      items
+      items: filtered
     };
   },
 
@@ -1091,8 +1103,36 @@ export const mockFallback = {
     const lastAssistantTurn = [...history].reverse().find((m) => m.role === "assistant");
     const lastTopic = lastAssistantTurn?.topic || "employment_check";
 
-    // Turn 1: Branch from employment_check
-    if (lastTopic === "employment_check") {
+    // Direct questions or status inquiries from candidate
+    if (
+      lastUserText.includes("delay") ||
+      lastUserText.includes("not received") ||
+      lastUserText.includes("haven't received") ||
+      lastUserText.includes("when will") ||
+      lastUserText.includes("update my status") ||
+      lastUserText.includes("help")
+    ) {
+      return {
+        topic: "status_inquiry",
+        question: `Hello ${name}! Your longitudinal follow-up for milestone ${stg} is currently active for ${t.district}, ${t.state}. You can confirm your current livelihood right now by selecting an option below:`,
+        quick_replies: [
+          "Still with " + (employer || "current employer"),
+          "Changed to new job",
+          "Working as self-employed",
+          "Seeking new opportunities"
+        ],
+        suggested_replies: [
+          "Still with " + (employer || "current employer"),
+          "Changed to new job",
+          "Working as self-employed",
+          "Seeking new opportunities"
+        ],
+        complete: false
+      };
+    }
+
+    // Turn 1: Branch from employment_check or status_inquiry
+    if (lastTopic === "employment_check" || lastTopic === "status_inquiry") {
       // 1. Check unemployed signals first to avoid substring false-positives
       if (
         lastUserText.includes("not working") ||
@@ -1226,10 +1266,64 @@ export const mockFallback = {
 
   askAi: (question: string, context?: any): AiStructuredResponse => {
     const q = (question || "").trim().toLowerCase();
+    const isFriendly = context?.tone === "friendly";
+    const stateContext = (context?.state || "").toLowerCase();
+    const districtContext = (context?.district || "").toLowerCase();
+
+    // Helper to format response based on selected tone
+    const adaptTone = (resp: AiStructuredResponse): AiStructuredResponse => {
+      if (!isFriendly) return resp;
+      return {
+        ...resp,
+        insight: `💡 ${resp.insight}`,
+        evidence: resp.evidence.map((e, idx) => `${['📊', '🎯', '🚀', '✨'][idx % 4]} ${e}`),
+        explanation: `Here is what is happening behind the numbers: ${resp.explanation}`,
+        recommendation: `Recommended Next Steps: ${resp.recommendation}`,
+        source_mode: `${resp.source_mode} (Friendly Mode)`
+      };
+    };
+
+    // State 1: Maharashtra Specific Analysis
+    if (q.includes("maharashtra") || stateContext.includes("maharashtra") || districtContext.includes("pune") || districtContext.includes("nashik") || districtContext.includes("nagpur")) {
+      if (q.includes("gap") || q.includes("skill") || q.includes("demand") || q.includes("employment") || q.includes("trend") || q.includes("wage") || q.includes("maharashtra")) {
+        return adaptTone({
+          insight: "In Maharashtra (Pune, Nashik, Nagpur), high-tech industrial absorption drives strong demand in EV & Battery Diagnostics and CNC Precision Tooling, with verified monthly wages averaging ₹25,300/mo.",
+          evidence: [
+            "Industrial Wage Premium: Average technical entry wages in Pune (₹26,216/mo) and Nagpur (₹25,953/mo) are the highest across the tri-state network.",
+            "EV Battery & Diagnostics Deficit: Over 1,030 authorized industry requisitions remain unfulfilled in Pune Chakan industrial belt.",
+            "High 6-Month Retention: Maharashtra cohorts maintain an 84.4% 6-month retention rate, bolstered by established manufacturing clusters."
+          ],
+          explanation: "Automotive OEMs and EV component suppliers in Pune and Nashik are undergoing rapid electrification. While basic mechanical trade supply is adequate, specialized diagnostic capabilities (CAN-Bus, high-voltage battery cell balancing, PLC automation) face an acute talent deficit, driving entry salaries 28% higher than conventional roles.",
+          recommendation: "Scale industry-partnered dual training models with Pune Auto clusters and expand NCVET Level 5 EV Powertrain certifications across ITIs.",
+          limitations: "Synthesized using verified SkillPulse longitudinal cohort records across Maharashtra districts (Pune, Nashik, Nagpur).",
+          source_mode: "SkillPulse AI Verified Intelligence Engine",
+          comparison: null
+        });
+      }
+    }
+
+    // State 2: Uttar Pradesh Specific Analysis
+    if (q.includes("uttar pradesh") || q.includes("up") || stateContext.includes("uttar") || districtContext.includes("lucknow") || districtContext.includes("varanasi") || districtContext.includes("prayagraj")) {
+      if (q.includes("gap") || q.includes("skill") || q.includes("demand") || q.includes("employment") || q.includes("trend") || q.includes("wage") || q.includes("uttar")) {
+        return adaptTone({
+          insight: "In Uttar Pradesh (Lucknow, Varanasi, Prayagraj), industrial electrification and telecom field operations drive steady employment (81.7% placement), with Varanasi achieving the leading 6-month retention at 79.5%.",
+          evidence: [
+            "Electrification & Power Trades: 1,600 verified requisitions for domestic/industrial electricians across UP state clusters.",
+            "Varanasi Cluster Stability: Varanasi achieves a 79.5% 6-month retention rate due to strong local handloom-power and engineering cluster integration.",
+            "Mean Technical Wage: UP cohorts average ₹21,257/mo, with Lucknow field technicians commanding up to ₹24,000/mo."
+          ],
+          explanation: "Longitudinal data indicates that infrastructure expansion and telecom fiber rollouts have accelerated hiring for field technicians and electricians. Retention remains resilient in Varanasi and Lucknow, but Prayagraj exhibits moderate attrition (19.5%) when entry wages dip below ₹18,000/mo.",
+          recommendation: "Implement localized employer tie-ups in Lucknow and Varanasi, and introduce a 90-day post-placement living stipend for candidates placed in urban industrial hubs.",
+          limitations: "Derived from SkillPulse verified longitudinal tracking records across Uttar Pradesh (Lucknow, Varanasi, Prayagraj).",
+          source_mode: "SkillPulse AI Verified Intelligence Engine",
+          comparison: null
+        });
+      }
+    }
 
     // Question 1: "What are the major employment gaps in Bihar?" (or Bihar employment gap questions)
     if (q.includes("bihar") && (q.includes("gap") || q.includes("employment") || q.includes("job") || q.includes("shortage"))) {
-      return {
+      return adaptTone({
         insight: "In Bihar (Patna, Muzaffarpur, Gaya), critical workforce deficits exist in Solar PV Installation and Electrical Maintenance, while clerical Data Entry exhibits high oversupply (-42% net absorption).",
         evidence: [
           "Solar PV & Renewable Deficit: 740 open industry requisitions vs. only 310 certified technicians in Bihar (58% workforce deficit).",
@@ -1241,39 +1335,39 @@ export const mockFallback = {
         limitations: "Synthesized using verified SkillPulse longitudinal cohort records across Bihar districts.",
         source_mode: "SkillPulse AI Verified Intelligence Engine",
         comparison: null
-      };
+      });
     }
 
     // Question 2: "Which districts have the highest retention rate?" (or highest retention ranking questions)
     if ((q.includes("highest") || q.includes("top") || q.includes("rank") || q.includes("best")) && q.includes("retention")) {
-      return {
-        insight: "Varanasi (81.8%), Pune (81.6%), and Nashik (81.2%) lead in 6-month retention across all evaluated districts, with Muzaffarpur (80.8%) exhibiting the highest retention among Bihar cohorts.",
+      return adaptTone({
+        insight: "Nashik (85.0%), Nagpur (84.5%), and Patna (84.3%) lead in 6-month retention across all evaluated districts, with Muzaffarpur (81.0%) and Lucknow (80.5%) demonstrating strong regional stability.",
         evidence: [
-          "Top Tier 6-Month Retention: Varanasi (81.8%), Pune (81.6%), Nashik (81.2%), Nagpur (81.1%), Muzaffarpur (80.8%).",
-          "Mid Tier 6-Month Retention: Lucknow (79.3%), Patna (78.2%), Gaya (78.2%), Prayagraj (76.1%).",
+          "Top Tier 6-Month Retention: Nashik (85.0%), Nagpur (84.5%), Patna (84.3%), Pune (83.8%), Muzaffarpur (81.0%).",
+          "Mid Tier 6-Month Retention: Lucknow (80.5%), Prayagraj (80.5%), Varanasi (79.5%), Gaya (77.8%).",
           "Commute Distance Correlation: Candidates placed within 25 km of home exhibit 84.5% retention vs. 63.2% for inter-district commuters."
         ],
-        explanation: "High-retention districts benefit from strong local industrial manufacturing clusters and competitive entry wages. In Varanasi and Pune, average verified technical wages exceed ₹22,500/mo, and employers offering transit subsidies or subsidized housing demonstrate 28% lower probationary attrition compared to Prayagraj and Gaya.",
-        recommendation: "Replicate Varanasi's employer check-in model across lower-retention districts: provide a ₹2,000/mo 3-month transit subsidy for trainees placed beyond a 25km radius.",
+        explanation: "High-retention districts benefit from strong local industrial manufacturing clusters and competitive entry wages. In Pune and Nashik, average verified technical wages exceed ₹23,500/mo, and employers offering transit subsidies or subsidized housing demonstrate 28% lower probationary attrition compared to districts with lower initial entry pay.",
+        recommendation: "Replicate local industrial cluster employer check-in models: provide a ₹2,000/mo 3-month transit subsidy for trainees placed beyond a 25km radius.",
         limitations: "Based on longitudinal cohort tracking across 3,600 verified candidates in Bihar, UP, and Maharashtra.",
         source_mode: "SkillPulse AI Verified Intelligence Engine",
         comparison: {
           entities: [
-            { name: "Varanasi (UP)", metrics: "81.8% 6M Retention • ₹21,090/mo avg wage", strengths: "Strong local weaving & engineering cluster integration", skill_gaps: "Solar Maintenance", employment: "82.2% Emp Rate" },
-            { name: "Pune (MH)", metrics: "81.6% 6M Retention • ₹23,346/mo avg wage", strengths: "High-wage automotive & EV manufacturing absorption", skill_gaps: "EV Diagnostics (-1,030)", employment: "80.2% Emp Rate" },
-            { name: "Muzaffarpur (BR)", metrics: "80.8% 6M Retention • ₹21,374/mo avg wage", strengths: "Highest livelihood retention in Bihar; strong electrical trades", skill_gaps: "Solar PV (-340)", employment: "84.8% Emp Rate" },
-            { name: "Prayagraj (UP)", metrics: "76.1% 6M Retention • ₹21,084/mo avg wage", strengths: "Solid initial placement rate", skill_gaps: "Industrial Automation", employment: "81.5% Emp Rate" }
+            { name: "Nashik (MH)", metrics: "85.0% 6M Retention • ₹23,747/mo avg wage", strengths: "High manufacturing absorption & local stability", skill_gaps: "Solar Maintenance", employment: "106.3% Livelihood Rate" },
+            { name: "Pune (MH)", metrics: "83.8% 6M Retention • ₹26,216/mo avg wage", strengths: "High-wage automotive & EV manufacturing absorption", skill_gaps: "EV Diagnostics (-1,030)", employment: "104.7% Livelihood Rate" },
+            { name: "Muzaffarpur (BR)", metrics: "81.0% 6M Retention • ₹19,892/mo avg wage", strengths: "Highest livelihood retention in Bihar; strong electrical trades", skill_gaps: "Solar PV (-340)", employment: "103.1% Livelihood Rate" },
+            { name: "Lucknow (UP)", metrics: "80.5% 6M Retention • ₹21,876/mo avg wage", strengths: "Telecom & technical services cluster", skill_gaps: "Field Operations", employment: "102.5% Livelihood Rate" }
           ],
-          differences: "Pune and Varanasi maintain >81% retention due to proximity of industrial employment, whereas Prayagraj experiences 5.7% higher attrition due to outward migration.",
+          differences: "Maharashtra districts maintain >83% retention supported by higher manufacturing entry wages, while Bihar and UP rely on local cluster integration.",
           reasons: "Entry wage adequacy and commuting cost pressures during the 90-day probationary window.",
           implications: "Policy interventions should focus on local micro-cluster placement rather than distant migration without transit support."
         }
-      };
+      });
     }
 
     // Question 3: "Why are trainees leaving their jobs?" (or attrition / leaving root cause questions)
     if (q.includes("leaving") || q.includes("leave") || q.includes("quit") || q.includes("attrition") || q.includes("turnover") || q.includes("resigning")) {
-      return {
+      return adaptTone({
         insight: "The primary driver of trainee job departures is entry-level wage dissatisfaction (<₹18,000/mo), accounting for 33% of attrition, followed by transit/commute constraints (26%) and technical role mismatch (17%).",
         evidence: [
           "Entry Wage Offer Below Expectation (<₹18k/mo): 33% of departures (31 documented cohort exits).",
@@ -1286,12 +1380,12 @@ export const mockFallback = {
         limitations: "Derived from verified follow-up check-in records and employer exit logs.",
         source_mode: "SkillPulse AI Verified Intelligence Engine",
         comparison: null
-      };
+      });
     }
 
     // Question 4: "Which skills have increasing demand?" (or skill demand / growing skills questions)
     if ((q.includes("skill") || q.includes("demand")) && (q.includes("increase") || q.includes("increasing") || q.includes("grow") || q.includes("rising") || q.includes("high") || q.includes("surge"))) {
-      return {
+      return adaptTone({
         insight: "Clean Energy, Electric Mobility, and Industrial Electrical trades exhibit the steepest demand increases, led by Solar PV Installation (+38% YoY) and EV Battery Diagnostics (+36% YoY).",
         evidence: [
           "Solar PV Installation & Maintenance: +38% YoY growth, 1,950 authorized industry openings, net deficit of 1,110 technicians.",
@@ -1304,7 +1398,7 @@ export const mockFallback = {
         limitations: "Benchmarked against 99 registered employer requisitions and state skill mission quotas.",
         source_mode: "SkillPulse AI Verified Intelligence Engine",
         comparison: null
-      };
+      });
     }
 
     // Comparison between districts (e.g., Patna vs Muzaffarpur, Pune vs Nashik, etc.)
@@ -1312,17 +1406,17 @@ export const mockFallback = {
       const isBihar = q.includes("patna") || q.includes("muzaffarpur") || q.includes("gaya");
       const d1 = isBihar ? "Muzaffarpur" : "Pune";
       const d2 = isBihar ? "Patna" : "Nashik";
-      const r1 = isBihar ? "80.8%" : "81.6%";
-      const r2 = isBihar ? "78.2%" : "81.2%";
-      const w1 = isBihar ? "₹21,374" : "₹23,346";
-      const w2 = isBihar ? "₹22,610" : "₹21,067";
+      const r1 = isBihar ? "81.0%" : "83.8%";
+      const r2 = isBihar ? "84.3%" : "85.0%";
+      const w1 = isBihar ? "₹19,892" : "₹26,216";
+      const w2 = isBihar ? "₹19,957" : "₹23,747";
 
-      return {
+      return adaptTone({
         insight: `Comparative Analysis: ${d1} maintains a 6-month retention rate of ${r1} with average wages of ${w1}/mo, while ${d2} exhibits ${r2} retention with average wages of ${w2}/mo.`,
         evidence: [
           `${d1}: 400 trainees tracked • ${r1} 6M Retention • ${w1}/mo average entry wage.`,
           `${d2}: 400 trainees tracked • ${r2} 6M Retention • ${w2}/mo average entry wage.`,
-          `Verified Placement Rate: ${d1} at 84.8% vs ${d2} at 83.8%.`
+          `Verified Placement Rate: ${d1} at 103.1% vs ${d2} at 106.3% livelihood engagement.`
         ],
         explanation: `In ${d1}, stronger localized placement absorption enables higher retention, whereas ${d2} benefits from higher corporate wage offerings but experiences greater inter-district mobility.`,
         recommendation: `Align training quotas in ${d1} and ${d2} with direct employer MoUs to sustain high placement retention.`,
@@ -1330,14 +1424,14 @@ export const mockFallback = {
         source_mode: "SkillPulse AI Verified Intelligence Engine",
         comparison: {
           entities: [
-            { name: d1, metrics: `${r1} Retention • ${w1}/mo`, strengths: "Strong local placement stability", skill_gaps: "Solar Maintenance", employment: "84.8%" },
-            { name: d2, metrics: `${r2} Retention • ${w2}/mo`, strengths: "Higher wage ceiling in urban corporate roles", skill_gaps: "EV Diagnostics", employment: "83.8%" }
+            { name: d1, metrics: `${r1} Retention • ${w1}/mo`, strengths: "Strong local placement stability", skill_gaps: "Solar Maintenance", employment: "Active cohort" },
+            { name: d2, metrics: `${r2} Retention • ${w2}/mo`, strengths: "Higher wage ceiling in urban corporate roles", skill_gaps: "EV Diagnostics", employment: "Active cohort" }
           ],
-          differences: `${d1} has higher retention (+${(parseFloat(r1) - parseFloat(r2)).toFixed(1)}%), while ${d2} offers higher mean wages.`,
+          differences: `${d2} exhibits higher retention (+${(parseFloat(r2) - parseFloat(r1)).toFixed(1)}%) and competitive wage packages.`,
           reasons: "Urban living costs in capital cities vs stable local housing in industrial clusters.",
           implications: "Targeted housing and transit allowances significantly improve retention in urban centres."
         }
-      };
+      });
     }
 
     // Trainee Career Advisor questions (wage increase, promotion, skill upgrades, local jobs)
@@ -1349,7 +1443,7 @@ export const mockFallback = {
       const targetRole = isEv ? "EV Powertrain Diagnostics Specialist" : isSolar ? "Microgrid Engineer / Solar Site Supervisor" : "Senior Automation Technician";
       const wageInc = isEv ? "₹28,500/mo (+32%)" : isSolar ? "₹26,500/mo (+28%)" : "₹25,000/mo (+25%)";
 
-      return {
+      return adaptTone({
         insight: `Career Advancement Pathway for ${dist}: Acquiring certification in ${targetSkill} qualifies you for ${targetRole} roles with verified median wages of ${wageInc}.`,
         evidence: [
           `Local Demand in ${dist}: Active shortage of certified specialists with ${targetSkill}.`,
@@ -1361,22 +1455,22 @@ export const mockFallback = {
         limitations: "Grounded in verified employer requisitions and candidate wage progression in the SkillPulse multi-state dataset.",
         source_mode: "SkillPulse AI Verified Career Advisor",
         comparison: null
-      };
+      });
     }
 
     // Default intelligent domain-grounded response
-    return {
-      insight: `Workforce Intelligence Analysis for "${question}": Longitudinal career signals indicate an average 81.9% livelihood rate and 79.8% 6-month retention across tracked cohorts.`,
+    return adaptTone({
+      insight: `Workforce Intelligence Analysis for "${question}": Longitudinal career signals across 3,600 trainees indicate an average 83.1% livelihood rate and 80.8% 6-month retention.`,
       evidence: [
-        "Verified Multi-State Cohort: 3,600 trainees across Bihar, Uttar Pradesh, and Maharashtra.",
-        "6-Month Longitudinal Retention Rate: 79.8% with EPFO/employer corroborate.",
-        "Average Verified Monthly Wage: ₹21,890 with 24% wage growth in green energy and mobility trades."
+        "Verified Multi-State Cohort: 3,600 trainees (1,200 Bihar, 1,200 UP, 1,200 Maharashtra across 9 districts).",
+        "6-Month Longitudinal Retention Rate: 80.8% with independent EPFO/employer corroborate.",
+        "Average Verified Monthly Wage: ₹21,890 with progression from ₹18,918 (Gaya) to ₹26,216 (Pune)."
       ],
       explanation: `Analysis of post-training outcomes indicates that specialized technical certifications (Solar PV, EV Battery Diagnostics, Industrial Electrician) demonstrate 34% higher 12-month retention and ₹6,000/mo higher wages compared to general office assistance. Retention drops notably when post-placement migration support is absent.`,
       recommendation: "Institute 90-day post-placement employer micro-checkins and prioritize industrial apprenticeships with verified living-wage employers.",
       limitations: "Synthesized using verified SkillPulse longitudinal cohort records across Bihar, UP, and Maharashtra.",
       source_mode: "SkillPulse AI Verified Intelligence Engine",
       comparison: null
-    };
+    });
   }
 };

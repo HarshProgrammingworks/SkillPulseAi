@@ -30,7 +30,7 @@ export const WhatsAppSimulatorModal: React.FC<WhatsAppSimulatorModalProps> = ({
   const district = trainee.district || "State District";
   const state = trainee.state || "";
 
-  // Determine stage to follow up on (defaults to 9M or 12M if available, or trainee.stage)
+  // Determine stage to follow up on
   const stage = targetStage || trainee.stage || "9M";
   const is12M = stage === "12M" || stage === "12 Months" || stage === "365 Days";
   const is9M = stage === "9M" || stage === "9 Months";
@@ -41,6 +41,8 @@ export const WhatsAppSimulatorModal: React.FC<WhatsAppSimulatorModalProps> = ({
   const currentEmpStatus = existingCheckpoint.employment_status || trainee.employment_status || "Employed";
   const currentRole = existingCheckpoint.role || trainee.job_role || trainee.programme || "Specialist";
   const currentEmployer = existingCheckpoint.employer || trainee.employer || "Enterprise Partner";
+  const traineeSkills = (trainee.skills_acquired || []).slice(0, 2).join(", ") || "trained skills";
+  const traineeProgramme = trainee.programme || "vocational programme";
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -107,14 +109,43 @@ export const WhatsAppSimulatorModal: React.FC<WhatsAppSimulatorModalProps> = ({
       });
 
     const fallbackInitial = () => {
-      setMessages([
-        {
-          role: "assistant",
-          content: `Hi ${traineeName.split(" ")[0]}, we'd like to update your employment status for your ${stageTitle} follow-up.\n\nAre you currently employed?`,
-          topic: "employment_check",
-          timestamp: getNowTime()
-        }
-      ]);
+      // Smart opening — use known employment status, skip generic question
+      const knownStatus = (currentEmpStatus || "").toLowerCase();
+      const firstName = traineeName.split(" ")[0];
+      let openingMsg: string;
+      let openingTopic: string;
+
+      if (knownStatus === "employed") {
+        openingMsg = `Hi ${firstName}! This is your ${stageTitle} career check-in from SkillPulse.\n\nOur records show you are currently working as ${currentRole} at ${currentEmployer}. Is that still correct?`;
+        openingTopic = "role_confirm";
+      } else if (knownStatus === "self-employed") {
+        openingMsg = `Hi ${firstName}! This is your ${stageTitle} career check-in.\n\nYou were last recorded as self-employed. What type of business or trade are you currently running?`;
+        openingTopic = "self_employed_type";
+      } else if (knownStatus === "apprenticeship") {
+        openingMsg = `Hi ${firstName}! This is your ${stageTitle} career check-in.\n\nYou were enrolled in an apprenticeship with ${currentEmployer}. Are you still in the same apprenticeship?`;
+        openingTopic = "apprenticeship_status";
+      } else if (knownStatus === "unemployed" || knownStatus === "not working") {
+        openingMsg = `Hi ${firstName}! This is your ${stageTitle} career check-in from SkillPulse.\n\nWe noticed you do not have a registered placement yet. What is the main reason you have not found a suitable opportunity after completing ${traineeProgramme}?`;
+        openingTopic = "unemployment_barrier";
+      } else {
+        openingMsg = `Hi ${firstName}! This is your ${stageTitle} career check-in from SkillPulse.\n\nSince completing ${traineeProgramme}, what is your current employment situation?`;
+        openingTopic = "employment_check";
+      }
+
+      setMessages([{ role: "assistant", content: openingMsg, topic: openingTopic, timestamp: getNowTime() }]);
+
+      // Set smart quick replies based on known status
+      if (knownStatus === "employed") {
+        setReplies(["Yes, still in same role", "Same employer, different role", "Changed to new employer", "No longer working"]);
+      } else if (knownStatus === "self-employed") {
+        setReplies(["Solar installation contractor", "Independent electrician", "EV or repair workshop", "Mobile service technician", "Other trade business"]);
+      } else if (knownStatus === "apprenticeship") {
+        setReplies(["Yes, apprenticeship ongoing", "Completed, now employed", "Completed, seeking job", "Changed apprenticeship site"]);
+      } else if (knownStatus === "unemployed" || knownStatus === "not working") {
+        setReplies(["No suitable jobs nearby", "Salary offers too low", "Did not receive placement support", "Family or personal reasons", "Still searching actively"]);
+      } else {
+        setReplies(["Working at a company", "Running my own business", "In apprenticeship or training", "Looking for a job", "Not working currently"]);
+      }
     };
 
     return () => {
@@ -201,30 +232,85 @@ export const WhatsAppSimulatorModal: React.FC<WhatsAppSimulatorModalProps> = ({
 
   const fallbackResponse = (currentHistory: ChatMessage[], lastUserText: string) => {
     const lower = lastUserText.toLowerCase();
-    let nextQ = "Thanks for the update. Could you please confirm your current employer or work location?";
-    let nextR = ["Still with same employer", "Changed employer recently", "Working independently"];
-    let isDone = false;
+    const firstName = traineeName.split(" ")[0];
+    const askedTopics = new Set(currentHistory.filter(m => m.role === "assistant").map(m => m.topic).filter(Boolean));
+    const lastAssistant = [...currentHistory].reverse().find(m => m.role === "assistant");
+    const lastTopic = lastAssistant?.topic || "employment_check";
 
-    if (currentHistory.length >= 6) {
-      nextQ = `Thank you ${traineeName.split(" ")[0]}! Your ${stageTitle} follow-up has been logged as Self-Reported.`;
+    let nextQ = "";
+    let nextR: string[] = [];
+    let isDone = false;
+    let nextTopic = "followup";
+
+    // Completion condition
+    if (currentHistory.length >= 8 || lower.includes("thank you")) {
+      nextQ = `Thank you ${firstName}! Your ${stageTitle} follow-up has been recorded as Self-Reported in the SkillPulse Career Ledger.`;
       nextR = [];
       isDone = true;
+      nextTopic = "completion";
       setComplete(true);
-    } else if (lower.includes("not working") || lower.includes("unemployed") || lower.includes("looking")) {
-      nextQ = "Thank you for letting us know. Are you currently actively looking for work or interested in further training?";
-      nextR = ["Actively looking for work", "Interested in further training", "Not looking right now"];
+    }
+    // Employed path
+    else if (lastTopic === "role_confirm" && (lower.includes("yes") || lower.includes("same"))) {
+      nextQ = `Great! Are the ${traineeSkills} skills from your training being used in your current role at ${currentEmployer}?`;
+      nextR = ["Yes, very relevant", "Partially relevant", "Not really used"];
+      nextTopic = "skill_relevance";
+    }
+    else if (lastTopic === "role_confirm" && (lower.includes("changed") || lower.includes("new employer"))) {
+      nextQ = `What was the main reason for changing employers?`;
+      nextR = ["Better salary", "Role mismatch", "Employer closed", "Better opportunity"];
+      nextTopic = "job_change_reason";
+    }
+    else if (lastTopic === "role_confirm" && (lower.includes("no longer") || lower.includes("left") || lower.includes("quit"))) {
+      nextQ = `What was the main reason you left ${currentEmployer}?`;
+      nextR = ["Wage below expectation", "Commute issues", "Role mismatch", "Contract ended", "Personal reasons"];
+      nextTopic = "exit_reason";
       setOutcomeForm((prev) => ({ ...prev, employment_status: "Unemployed", verification_status: "Self-Reported" }));
     }
+    else if (lastTopic === "skill_relevance") {
+      nextQ = `Could you confirm your current monthly take-home salary?`;
+      nextR = ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"];
+      nextTopic = "wage_check";
+    }
+    else if (lastTopic === "wage_check") {
+      nextQ = `How long have you been with your current employer, and do you see yourself continuing for the next 6 months?`;
+      nextR = ["Less than 3 months", "3 to 6 months", "6+ months and stable", "Planning to move on"];
+      nextTopic = "retention_check";
+    }
+    // Unemployed path
+    else if (lower.includes("not working") || lower.includes("unemployed") || lower.includes("looking") || lower.includes("searching")) {
+      nextQ = `Are you actively searching for jobs in ${district}, or open to opportunities in nearby areas?`;
+      nextR = ["Actively searching locally", "Open to relocate", "Interested in further training", "Taking a break"];
+      nextTopic = "job_search_status";
+      setOutcomeForm((prev) => ({ ...prev, employment_status: "Unemployed", verification_status: "Self-Reported" }));
+    }
+    // Self-employed path
+    else if (lastTopic === "self_employed_type") {
+      nextQ = `Did the training in ${traineeProgramme} help you start or improve your business?`;
+      nextR = ["Yes, directly helped", "Yes, improved my skills", "Partially helped", "Business unrelated to training"];
+      nextTopic = "self_emp_training_help";
+      setOutcomeForm((prev) => ({ ...prev, employment_status: "Self-Employed", verification_status: "Self-Reported" }));
+    }
+    else if (lastTopic === "self_emp_training_help") {
+      nextQ = `What are your average monthly net earnings from your business?`;
+      nextR = ["Under Rs15,000/month", "Rs15,000-Rs20,000/month", "Rs20,000-Rs25,000/month", "Rs25,000+/month"];
+      nextTopic = "monthly_earnings";
+    }
+    // Apprenticeship path
+    else if (lastTopic === "apprenticeship_status" && lower.includes("ongoing")) {
+      nextQ = `Is there a possibility of a full-time offer after your apprenticeship ends?`;
+      nextR = ["Yes, very likely", "Possibly", "No, fixed-term only", "Not sure"];
+      nextTopic = "apprentice_transition";
+      setOutcomeForm((prev) => ({ ...prev, employment_status: "Apprenticeship", verification_status: "Self-Reported" }));
+    }
+    else {
+      // Generic sensible continuation
+      nextQ = `Thank you for sharing. Could you confirm your current employment status and monthly income so we can update your record?`;
+      nextR = ["Currently employed", "Self-employed", "Looking for work", "In apprenticeship"];
+      nextTopic = "status_confirm";
+    }
 
-    setMessages([
-      ...currentHistory,
-      {
-        role: "assistant",
-        content: nextQ,
-        topic: isDone ? "done" : "fallback",
-        timestamp: getNowTime()
-      }
-    ]);
+    setMessages([...currentHistory, { role: "assistant", content: nextQ, topic: nextTopic, timestamp: getNowTime() }]);
     setReplies(nextR);
   };
 

@@ -1,4 +1,4 @@
-import mockDataRaw from "@/data/mockApiData.json";
+﻿import mockDataRaw from "@/data/mockApiData.json";
 import {
   Trainee,
   DashboardKpis,
@@ -1058,194 +1058,389 @@ export const mockFallback = {
     stage?: string
   ) => {
     const traineesList: Trainee[] = mockData.trainees || [];
-    const t = traineesList.find((tr) => tr.id === traineeId || tr.skillpulse_id === traineeId) || traineesList[0] || {
-      name: "Candidate",
-      programme: "Technical Skilling",
-      employer: "Enterprise Partner",
-      job_role: "Specialist",
-      current_wage: 21500
+    const t: any = traineesList.find((tr: any) => tr.id === traineeId || tr.skillpulse_id === traineeId) || traineesList[0] || {
+      name: "Candidate", programme: "Technical Skilling", employer: "Enterprise Partner",
+      job_role: "Specialist", current_wage: 21500, employment_status: ""
     };
 
     const name = (t.name || "Candidate").split(" ")[0];
     const employer = t.employer || "Enterprise Partner";
     const role = t.job_role || t.programme || "Technician";
     const stg = stage || "9M";
+    const skills = (t.skills_acquired || []).slice(0, 2).join(", ") || "trained skills";
+    const programme = t.programme || "vocational programme";
+    const wage = t.current_wage || 21500;
+    const knownStatus = (t.employment_status || "").toLowerCase();
+    const district = t.district || "your district";
 
-    // Opening turn
+    // Opening Turn - skip generic question when status is already known
     if (!history || history.length === 0) {
-      return {
-        topic: "employment_check",
-        question: `Hi ${name}, we'd like to update your employment status for your ${stg} career follow-up.\n\nAre you currently employed?`,
-        quick_replies: [
-          "Still employed",
-          "Changed employer",
-          "Looking for a job",
-          "Self-employed",
-          "Further training",
-          "Not currently working"
-        ],
-        suggested_replies: [
-          "Still employed",
-          "Changed employer",
-          "Looking for a job",
-          "Self-employed",
-          "Further training",
-          "Not currently working"
-        ],
-        complete: false
-      };
-    }
-
-    const lastUserTurn = [...history].reverse().find((m) => m.role === "user");
-    const lastUserText = (lastUserTurn?.content || "").trim().toLowerCase();
-
-    // Determine the last assistant topic
-    const lastAssistantTurn = [...history].reverse().find((m) => m.role === "assistant");
-    const lastTopic = lastAssistantTurn?.topic || "employment_check";
-
-    // Direct questions or status inquiries from candidate
-    if (
-      lastUserText.includes("delay") ||
-      lastUserText.includes("not received") ||
-      lastUserText.includes("haven't received") ||
-      lastUserText.includes("when will") ||
-      lastUserText.includes("update my status") ||
-      lastUserText.includes("help")
-    ) {
-      return {
-        topic: "status_inquiry",
-        question: `Hello ${name}! Your longitudinal follow-up for milestone ${stg} is currently active for ${t.district}, ${t.state}. You can confirm your current livelihood right now by selecting an option below:`,
-        quick_replies: [
-          "Still with " + (employer || "current employer"),
-          "Changed to new job",
-          "Working as self-employed",
-          "Seeking new opportunities"
-        ],
-        suggested_replies: [
-          "Still with " + (employer || "current employer"),
-          "Changed to new job",
-          "Working as self-employed",
-          "Seeking new opportunities"
-        ],
-        complete: false
-      };
-    }
-
-    // Turn 1: Branch from employment_check or status_inquiry
-    if (lastTopic === "employment_check" || lastTopic === "status_inquiry") {
-      // 1. Check unemployed signals first to avoid substring false-positives
-      if (
-        lastUserText.includes("not working") ||
-        lastUserText.includes("unemployed") ||
-        lastUserText.includes("looking") ||
-        lastUserText.includes("left") ||
-        lastUserText.includes("quit") ||
-        lastUserText.startsWith("no") ||
-        lastUserText === "no"
-      ) {
+      if (knownStatus === "employed") {
         return {
-          topic: "unemployed_reason",
-          question: `Thank you for letting us know. Could you share what led to leaving your previous position?`,
-          quick_replies: ["Wage below expectation", "Commute/distance issues", "Role mismatch", "Contract ended", "Personal reasons"],
-          suggested_replies: ["Wage below expectation", "Commute/distance issues", "Role mismatch", "Contract ended", "Personal reasons"],
+          topic: "role_confirm",
+          question: `Hi ${name}! This is your ${stg} career check-in from SkillPulse.\n\nOur records show you are currently working as ${role} at ${employer}. Is that still correct?`,
+          quick_replies: ["Yes, still in same role", "Same employer, different role", "Changed to new employer", "No longer working"],
+          suggested_replies: ["Yes, still in same role", "Same employer, different role", "Changed to new employer", "No longer working"],
           complete: false
         };
       }
-
-      // 2. Check changed employer
-      if (lastUserText.includes("changed") || lastUserText.includes("another") || lastUserText.includes("new company") || lastUserText.includes("new job")) {
-        return {
-          topic: "new_employer",
-          question: `Congratulations on the new opportunity! What is the name of your new employer and your new role?`,
-          quick_replies: ["Joined manufacturing plant", "Working in tech/services", "Retail store associate"],
-          suggested_replies: ["Joined manufacturing plant", "Working in tech/services", "Retail store associate"],
-          complete: false
-        };
-      }
-
-      // 3. Check self-employed
-      if (lastUserText.includes("self") || lastUserText.includes("business") || lastUserText.includes("freelance") || lastUserText.includes("shop")) {
+      if (knownStatus === "self-employed") {
         return {
           topic: "self_employed_type",
-          question: `Excellent! What kind of independent trade or service business have you established?`,
-          quick_replies: ["Solar installation contractor", "Independent electrician", "Service repair shop", "Freelance technician"],
-          suggested_replies: ["Solar installation contractor", "Independent electrician", "Service repair shop", "Freelance technician"],
+          question: `Hi ${name}! This is your ${stg} career check-in.\n\nYou were last recorded as self-employed. What type of trade or business are you currently running?`,
+          quick_replies: ["Solar installation contractor", "Independent electrician", "EV or repair workshop", "Mobile service technician", "Other trade business"],
+          suggested_replies: ["Solar installation contractor", "Independent electrician", "EV or repair workshop", "Mobile service technician", "Other trade business"],
           complete: false
         };
       }
-
-      // 4. Check further training
-      if (lastUserText.includes("training") || lastUserText.includes("study") || lastUserText.includes("college") || lastUserText.includes("course")) {
+      if (knownStatus === "apprenticeship") {
         return {
-          topic: "training_details",
-          question: `That's great! What program or course are you currently pursuing?`,
-          quick_replies: ["Advanced diploma", "Degree program", "Apprenticeship certification"],
-          suggested_replies: ["Advanced diploma", "Degree program", "Apprenticeship certification"],
+          topic: "apprenticeship_status",
+          question: `Hi ${name}! This is your ${stg} career check-in.\n\nYou were enrolled in an apprenticeship with ${employer}. Are you still in the same apprenticeship?`,
+          quick_replies: ["Yes, apprenticeship ongoing", "Completed, now employed", "Completed, seeking job", "Changed apprenticeship site"],
+          suggested_replies: ["Yes, apprenticeship ongoing", "Completed, now employed", "Completed, seeking job", "Changed apprenticeship site"],
           complete: false
         };
       }
-
-      // 5. Positive / Still employed
+      if (knownStatus === "unemployed" || knownStatus === "not working") {
+        return {
+          topic: "unemployment_barrier",
+          question: `Hi ${name}! This is your ${stg} career check-in from SkillPulse.\n\nWe noticed you do not have a registered placement yet. What is the main reason you have not found a suitable opportunity after completing ${programme}?`,
+          quick_replies: ["No suitable jobs nearby", "Salary offers too low", "Did not receive placement support", "Family or personal reasons", "Still searching actively"],
+          suggested_replies: ["No suitable jobs nearby", "Salary offers too low", "Did not receive placement support", "Family or personal reasons", "Still searching actively"],
+          complete: false
+        };
+      }
       return {
-        topic: "still_role_confirm",
-        question: `Great to hear! Are you still working with ${employer} as ${role}?`,
-        quick_replies: ["Yes, same role & employer", "Role changed slightly", "Promoted to senior role"],
-        suggested_replies: ["Yes, same role & employer", "Role changed slightly", "Promoted to senior role"],
+        topic: "employment_check",
+        question: `Hi ${name}! This is your ${stg} career milestone check-in from SkillPulse.\n\nSince completing your ${programme}, what is your current employment situation?`,
+        quick_replies: ["Working at a company", "Running my own business", "In apprenticeship or training", "Looking for a job", "Not working currently"],
+        suggested_replies: ["Working at a company", "Running my own business", "In apprenticeship or training", "Looking for a job", "Not working currently"],
         complete: false
       };
     }
 
-    // Turn 2: Intermediate questions
-    if (lastTopic === "still_role_confirm" || lastTopic === "new_employer") {
+    // Conversation state analysis
+    const lastUserTurn = [...history].reverse().find((m) => m.role === "user");
+    const lastUserText = (lastUserTurn?.content || "").trim().toLowerCase();
+    const lastAssistantTurn = [...history].reverse().find((m) => m.role === "assistant");
+    const lastTopic = lastAssistantTurn?.topic || "employment_check";
+    const askedTopics = new Set(history.filter((m) => m.role === "assistant").map((m) => m.topic).filter(Boolean));
+    const fullHistory = history.map((m) => m.content.toLowerCase()).join(" ");
+
+    const mentionsEmployed = fullHistory.includes("employed") || fullHistory.includes("working at") || fullHistory.includes("same role") || fullHistory.includes("company") || fullHistory.includes("promoted") || fullHistory.includes("still working");
+    const mentionsSelf = fullHistory.includes("self-employed") || fullHistory.includes("business") || fullHistory.includes("freelance") || fullHistory.includes("contractor") || fullHistory.includes("independent") || fullHistory.includes("own shop");
+    const mentionsUnemployed = fullHistory.includes("not working") || fullHistory.includes("unemployed") || fullHistory.includes("looking for") || fullHistory.includes("no job") || fullHistory.includes("left the job") || fullHistory.includes("quit");
+    const mentionsApprentice = fullHistory.includes("apprenticeship") || fullHistory.includes("apprentice");
+    const mentionsJobChange = fullHistory.includes("changed employer") || fullHistory.includes("new employer") || fullHistory.includes("new company") || fullHistory.includes("switched");
+
+    // role_confirm branch
+    if (lastTopic === "role_confirm") {
+      if (lastUserText.includes("yes") || lastUserText.includes("same role") || lastUserText.includes("same employer")) {
+        if (!askedTopics.has("skill_relevance")) {
+          return {
+            topic: "skill_relevance",
+            question: `That is great to hear! As a ${role}, are the skills you gained during ${programme} being actively used in your day-to-day work?`,
+            quick_replies: ["Yes, very relevant", "Partially relevant", "My role does not use my trained skills", "I use additional skills too"],
+            suggested_replies: ["Yes, very relevant", "Partially relevant", "My role does not use my trained skills", "I use additional skills too"],
+            complete: false
+          };
+        }
+      }
+      if (lastUserText.includes("different role") || lastUserText.includes("changed role")) {
+        return {
+          topic: "new_role_details",
+          question: `What is your new job title at ${employer}? Has it been a promotion or a lateral change?`,
+          quick_replies: ["Promoted to senior role", "Lateral move to different function", "Temporary role change", "Role expanded with more duties"],
+          suggested_replies: ["Promoted to senior role", "Lateral move to different function", "Temporary role change", "Role expanded with more duties"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("changed employer") || lastUserText.includes("new employer")) {
+        return {
+          topic: "job_change_reason",
+          question: `I see you have moved to a new employer. What was the main reason for the change?`,
+          quick_replies: ["Better salary or growth", "Role was not matching skills", "Employer closed down", "Relocated to a new city", "Better opportunity came up"],
+          suggested_replies: ["Better salary or growth", "Role was not matching skills", "Employer closed down", "Relocated to a new city", "Better opportunity came up"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("no longer") || lastUserText.includes("not working") || lastUserText.includes("left") || lastUserText.includes("quit")) {
+        return {
+          topic: "exit_reason",
+          question: `Thank you for letting me know. What was the main reason you left ${employer}?`,
+          quick_replies: ["Wage below expectation", "Commute or distance issues", "Role mismatch with skills", "Contract ended", "Personal or family reasons"],
+          suggested_replies: ["Wage below expectation", "Commute or distance issues", "Role mismatch with skills", "Contract ended", "Personal or family reasons"],
+          complete: false
+        };
+      }
+    }
+
+    // skill_relevance branch
+    if (lastTopic === "skill_relevance") {
+      if (lastUserText.includes("not") || lastUserText.includes("no") || lastUserText.includes("does not")) {
+        return {
+          topic: "skill_mismatch_reason",
+          question: `That is important to note. Why does your current role not match your ${skills} training? Is it the nature of the job or the sector?`,
+          quick_replies: ["Job duties differ from training", "Placed in different department", "Employer had no matching role", "Accepted any job to earn income"],
+          suggested_replies: ["Job duties differ from training", "Placed in different department", "Employer had no matching role", "Accepted any job to earn income"],
+          complete: false
+        };
+      }
+      if (!askedTopics.has("wage_check")) {
+        return {
+          topic: "wage_check",
+          question: `Glad your training is being put to good use! Could you confirm your approximate current monthly take-home salary?`,
+          quick_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+ /month"],
+          suggested_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+ /month"],
+          complete: false
+        };
+      }
+    }
+
+    // skill_mismatch_reason branch
+    if (lastTopic === "skill_mismatch_reason" && !askedTopics.has("wage_check")) {
       return {
         topic: "wage_check",
-        question: `Could you confirm your current monthly take-home salary and if you are receiving regular wage slips?`,
-        quick_replies: ["₹18,000 - ₹22,000 / month", "₹22,000 - ₹26,000 / month", "₹26,000+ / month"],
-        suggested_replies: ["₹18,000 - ₹22,000 / month", "₹22,000 - ₹26,000 / month", "₹26,000+ / month"],
+        question: `Understood. What is your current monthly take-home salary in this role?`,
+        quick_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"],
+        suggested_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"],
         complete: false
       };
     }
 
-    if (lastTopic === "unemployed_reason") {
+    // wage_check branch
+    if (lastTopic === "wage_check" && !askedTopics.has("retention_check")) {
+      const wageLow = lastUserText.includes("under") || lastUserText.includes("below") || lastUserText.includes("18");
+      if (wageLow) {
+        return {
+          topic: "retention_check",
+          question: `A wage below Rs18,000/month can create challenges. Are you planning to stay with this employer, or are you actively looking for better opportunities?`,
+          quick_replies: ["Planning to stay and grow", "Actively looking for better pay", "Waiting for appraisal cycle", "Unsure right now"],
+          suggested_replies: ["Planning to stay and grow", "Actively looking for better pay", "Waiting for appraisal cycle", "Unsure right now"],
+          complete: false
+        };
+      }
+      return {
+        topic: "retention_check",
+        question: `That sounds solid! How long have you been with ${employer}, and do you see yourself continuing there for the next 6 months?`,
+        quick_replies: ["Less than 3 months", "3 to 6 months", "6+ months and stable", "Planning to move on"],
+        suggested_replies: ["Less than 3 months", "3 to 6 months", "6+ months and stable", "Planning to move on"],
+        complete: false
+      };
+    }
+
+    // job_change_reason branch
+    if (lastTopic === "job_change_reason" && !askedTopics.has("new_role_alignment")) {
+      return {
+        topic: "new_role_alignment",
+        question: `Is your new role better aligned with the ${skills} skills you acquired during training?`,
+        quick_replies: ["Yes, much better fit", "Somewhat aligned", "Not aligned at all", "Still figuring out"],
+        suggested_replies: ["Yes, much better fit", "Somewhat aligned", "Not aligned at all", "Still figuring out"],
+        complete: false
+      };
+    }
+
+    // new_role_alignment branch
+    if (lastTopic === "new_role_alignment" && !askedTopics.has("wage_check")) {
+      return {
+        topic: "wage_check",
+        question: `What is your monthly salary at your new employer?`,
+        quick_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"],
+        suggested_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"],
+        complete: false
+      };
+    }
+
+    // new_role_details branch
+    if (lastTopic === "new_role_details" && !askedTopics.has("wage_check")) {
+      return {
+        topic: "wage_check",
+        question: `Has your new role at ${employer} come with a salary change? What is your current monthly take-home?`,
+        quick_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"],
+        suggested_replies: ["Under Rs18,000/month", "Rs18,000-Rs22,000/month", "Rs22,000-Rs26,000/month", "Rs26,000+/month"],
+        complete: false
+      };
+    }
+
+    // exit_reason branch
+    if (lastTopic === "exit_reason" && !askedTopics.has("job_search_status")) {
       return {
         topic: "job_search_status",
-        question: `Are you currently actively looking for work, or would you like to receive new job alerts in your district?`,
-        quick_replies: ["Actively seeking local placement", "Open to relocate", "Looking for further upskilling"],
-        suggested_replies: ["Actively seeking local placement", "Open to relocate", "Looking for further upskilling"],
+        question: `Are you currently looking for a new opportunity in ${district} that aligns with your ${skills} skills?`,
+        quick_replies: ["Yes, actively searching locally", "Open to relocate for better opportunity", "Looking for apprenticeship or training", "Taking a break for now"],
+        suggested_replies: ["Yes, actively searching locally", "Open to relocate for better opportunity", "Looking for apprenticeship or training", "Taking a break for now"],
         complete: false
       };
     }
 
-    if (lastTopic === "self_employed_type") {
+    // self_employed_type branch
+    if (lastTopic === "self_employed_type" && !askedTopics.has("self_emp_training_help")) {
+      return {
+        topic: "self_emp_training_help",
+        question: `Did the training in ${programme} help you start or grow your business?`,
+        quick_replies: ["Yes, directly helped me start it", "Yes, improved my skills and confidence", "Partially helped", "Business is unrelated to training"],
+        suggested_replies: ["Yes, directly helped me start it", "Yes, improved my skills and confidence", "Partially helped", "Business is unrelated to training"],
+        complete: false
+      };
+    }
+
+    // self_emp_training_help branch
+    if (lastTopic === "self_emp_training_help" && !askedTopics.has("monthly_earnings")) {
       return {
         topic: "monthly_earnings",
-        question: `On average, what are your monthly net earnings from your trade or business?`,
-        quick_replies: ["₹15,000 - ₹20,000 / month", "₹20,000 - ₹25,000 / month", "₹25,000+ / month"],
-        suggested_replies: ["₹15,000 - ₹20,000 / month", "₹20,000 - ₹25,000 / month", "₹25,000+ / month"],
+        question: `On average, what are your monthly net earnings from your business or trade?`,
+        quick_replies: ["Under Rs15,000/month", "Rs15,000-Rs20,000/month", "Rs20,000-Rs25,000/month", "Rs25,000+/month"],
+        suggested_replies: ["Under Rs15,000/month", "Rs15,000-Rs20,000/month", "Rs20,000-Rs25,000/month", "Rs25,000+/month"],
         complete: false
       };
     }
 
-    // Final Turn: Completion
-    const isUnemployed = history.some((h) => h.content.toLowerCase().includes("not working") || h.content.toLowerCase().includes("unemployed") || h.content.toLowerCase().includes("looking") || (h.role === "user" && h.content.toLowerCase() === "no"));
-    const isSelf = history.some((h) => h.content.toLowerCase().includes("self"));
+    // apprenticeship_status branch
+    if (lastTopic === "apprenticeship_status") {
+      if (lastUserText.includes("completed") && (lastUserText.includes("employed") || lastUserText.includes("hired"))) {
+        return {
+          topic: "post_apprentice_role",
+          question: `Congratulations on completing your apprenticeship! What is your current role and employer?`,
+          quick_replies: ["Same company hired me full-time", "Joined a different employer", "Started my own venture"],
+          suggested_replies: ["Same company hired me full-time", "Joined a different employer", "Started my own venture"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("ongoing") || (lastUserText.includes("yes") && !lastUserText.includes("completed"))) {
+        return {
+          topic: "apprentice_transition",
+          question: `Is there any possibility of being offered a full-time position after your apprenticeship ends?`,
+          quick_replies: ["Yes, very likely", "Possibly, not confirmed yet", "No, it is fixed-term only", "Not sure yet"],
+          suggested_replies: ["Yes, very likely", "Possibly, not confirmed yet", "No, it is fixed-term only", "Not sure yet"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("completed") && (lastUserText.includes("seeking") || lastUserText.includes("job"))) {
+        return {
+          topic: "job_search_status",
+          question: `Now that your apprenticeship is complete, what type of full-time opportunity are you looking for in ${district}?`,
+          quick_replies: ["Technical role matching my training", "Any available local job", "Government or PSU role", "Plan to start own work"],
+          suggested_replies: ["Technical role matching my training", "Any available local job", "Government or PSU role", "Plan to start own work"],
+          complete: false
+        };
+      }
+    }
 
-    const finalStatus = isUnemployed ? "Unemployed" : isSelf ? "Self-Employed" : "Employed";
+    // unemployment_barrier branch
+    if (lastTopic === "unemployment_barrier" && !askedTopics.has("job_search_detail")) {
+      const noJobs = lastUserText.includes("no suitable") || lastUserText.includes("not nearby") || lastUserText.includes("nearby");
+      const salaryLow = lastUserText.includes("salary") || lastUserText.includes("low pay") || lastUserText.includes("offers too low");
+      const noSupport = lastUserText.includes("placement") || lastUserText.includes("support");
+      if (noJobs) {
+        return {
+          topic: "job_search_detail",
+          question: `Would you be open to opportunities in nearby districts or states, or are you strictly looking for work in ${district}?`,
+          quick_replies: ["Open to nearby districts", "Open to relocate interstate", "Strictly local only", "Unsure about relocation"],
+          suggested_replies: ["Open to nearby districts", "Open to relocate interstate", "Strictly local only", "Unsure about relocation"],
+          complete: false
+        };
+      }
+      if (salaryLow) {
+        return {
+          topic: "job_search_detail",
+          question: `What minimum monthly salary would you accept for a job that uses your ${skills} skills?`,
+          quick_replies: ["Rs15,000+/month", "Rs18,000+/month", "Rs20,000+/month", "Any fair salary to start"],
+          suggested_replies: ["Rs15,000+/month", "Rs18,000+/month", "Rs20,000+/month", "Any fair salary to start"],
+          complete: false
+        };
+      }
+      if (noSupport) {
+        return {
+          topic: "job_search_detail",
+          question: `Would you like SkillPulse to connect you with an employer partner or placement officer in ${district}?`,
+          quick_replies: ["Yes, please connect me", "I prefer to search on my own", "I have already been contacted"],
+          suggested_replies: ["Yes, please connect me", "I prefer to search on my own", "I have already been contacted"],
+          complete: false
+        };
+      }
+      return {
+        topic: "job_search_detail",
+        question: `Are you registered on the SkillPulse Hiring Desk? Would you like assistance finding a matching opportunity for your ${skills} skills?`,
+        quick_replies: ["Yes, registered and searching", "No, please help me register", "I applied but got no response", "I prefer local walk-in"],
+        suggested_replies: ["Yes, registered and searching", "No, please help me register", "I applied but got no response", "I prefer local walk-in"],
+        complete: false
+      };
+    }
+
+    // employment_check fallback branch
+    if (lastTopic === "employment_check") {
+      if (lastUserText.includes("working at a company") || lastUserText.includes("company") || lastUserText.includes("employed")) {
+        return {
+          topic: "role_confirm",
+          question: `What is your job title and the name of the company where you are currently working?`,
+          quick_replies: ["Solar or EV technician at a firm", "Electrician at factory", "Office or technical role", "Field operations technician"],
+          suggested_replies: ["Solar or EV technician at a firm", "Electrician at factory", "Office or technical role", "Field operations technician"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("own business") || lastUserText.includes("business") || lastUserText.includes("running")) {
+        return {
+          topic: "self_employed_type",
+          question: `Excellent! What kind of trade or service business have you set up?`,
+          quick_replies: ["Solar installation contractor", "Independent electrician", "EV or repair workshop", "Mobile technician services", "Other trade"],
+          suggested_replies: ["Solar installation contractor", "Independent electrician", "EV or repair workshop", "Mobile technician services", "Other trade"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("apprenticeship") || lastUserText.includes("training")) {
+        return {
+          topic: "apprenticeship_status",
+          question: `Which company or sector is your apprenticeship with, and how long have you been in it?`,
+          quick_replies: ["Manufacturing firm, 3+ months", "Government scheme, starting soon", "Private technical firm", "ITI or vocational centre"],
+          suggested_replies: ["Manufacturing firm, 3+ months", "Government scheme, starting soon", "Private technical firm", "ITI or vocational centre"],
+          complete: false
+        };
+      }
+      if (lastUserText.includes("looking") || lastUserText.includes("searching") || lastUserText.includes("not working") || lastUserText.includes("no job")) {
+        return {
+          topic: "unemployment_barrier",
+          question: `What is the biggest barrier stopping you from finding a job that matches your ${skills} training?`,
+          quick_replies: ["No suitable jobs nearby", "Salary offers too low", "Did not get placement support", "Family or personal reasons", "Still searching actively"],
+          suggested_replies: ["No suitable jobs nearby", "Salary offers too low", "Did not get placement support", "Family or personal reasons", "Still searching actively"],
+          complete: false
+        };
+      }
+    }
+
+    // Final completion
+    const finalStatus = mentionsSelf ? "Self-Employed"
+      : mentionsApprentice ? "Apprenticeship"
+      : (mentionsUnemployed && !mentionsEmployed) ? "Unemployed"
+      : mentionsEmployed ? "Employed"
+      : (knownStatus ? (knownStatus.charAt(0).toUpperCase() + knownStatus.slice(1)) : "Employed");
+
+    const finalWage = (() => {
+      if (fullHistory.includes("26000") || fullHistory.includes("26,000")) return 27000;
+      if (fullHistory.includes("22000") || fullHistory.includes("22,000")) return 23000;
+      if (fullHistory.includes("18000") || fullHistory.includes("18,000")) return 19500;
+      if (fullHistory.includes("15000") || fullHistory.includes("15,000")) return 16500;
+      return wage;
+    })();
+
+    const finalRole = mentionsJobChange
+      ? (lastUserText.includes("technician") ? "Senior Technician" : lastUserText.includes("manager") ? "Team Manager" : role)
+      : role;
 
     return {
       topic: "completion",
-      question: `Thank you ${name}! Your ${stg} career follow-up has been recorded as Self-Reported in the SkillPulse directory.`,
+      question: `Thank you, ${name}! Your ${stg} career milestone follow-up has been recorded as Self-Reported in the SkillPulse Career Ledger. Our team may follow up for verification. Best of luck with your career!`,
       quick_replies: [],
       suggested_replies: [],
       complete: true,
       collected: {
         employment_status: finalStatus,
-        employer: isUnemployed ? "N/A" : employer,
-        job_role: role,
-        wage: t.current_wage || 21500,
-        duration: stg === "12M" ? "12+ months" : stg === "9M" ? "9 months" : "6 months",
-        role_relevance: "Relevant",
-        skill_utilisation: "High",
+        employer: (mentionsUnemployed && !mentionsEmployed) ? "N/A" : employer,
+        job_role: finalRole,
+        wage: finalWage,
+        duration: stg === "12M" ? "12+ months" : stg === "9M" ? "9 months" : stg === "180D" ? "6 months" : "3 months",
+        role_relevance: mentionsSelf ? "Self-Directed" : (mentionsUnemployed && !mentionsEmployed) ? "Not Applicable" : (fullHistory.includes("relevant") || fullHistory.includes("yes")) ? "Relevant" : "Partially Relevant",
+        skill_utilisation: (mentionsUnemployed && !mentionsEmployed) ? "Not Applicable" : (fullHistory.includes("very") || fullHistory.includes("actively")) ? "High" : "Moderate",
         verification_status: "Self-Reported"
       }
     };

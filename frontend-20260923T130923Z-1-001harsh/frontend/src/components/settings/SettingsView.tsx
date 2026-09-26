@@ -70,12 +70,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Backend API Status */}
         <div className="gov-card p-4 space-y-1">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold" style={{ color: "var(--th-text-secondary)" }}>FastAPI Backend Engine</span>
+            <span className="font-bold" style={{ color: "var(--th-text-secondary)" }}>SkillPulse Intelligence Engine</span>
             <Server className="h-4 w-4 text-emerald-600" />
           </div>
-          <div className="text-lg font-black text-emerald-700">127.0.0.1:8000 Online</div>
-          <p className="text-[11px]" style={{ color: "var(--th-text-muted)" }}>Longitudinal In-Memory SQLite &amp; Vector Store</p>
-          <div className="pt-2 text-[10px] font-mono" style={{ color: "var(--th-text-muted)" }}>2000+ Active Synthetic Records</div>
+          <div className="text-lg font-black text-emerald-700">Verified Engine Active</div>
+          <p className="text-[11px]" style={{ color: "var(--th-text-muted)" }}>Longitudinal Multi-Verified Cohorts &amp; Outcomes</p>
+          <div className="pt-2 text-[10px] font-mono" style={{ color: "var(--th-text-muted)" }}>3,600+ Active Multi-State Records</div>
         </div>
 
         {/* Active Persona RBAC */}

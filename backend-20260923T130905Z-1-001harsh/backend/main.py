@@ -33,8 +33,9 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
+        "https://harshprogrammingworks.github.io",
     ],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.github\.io",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,7 +46,7 @@ async def global_exception_handler(request, exc):
     import traceback
     traceback.print_exc()
     from fastapi.responses import JSONResponse
-    origin = request.headers.get("origin") or "http://localhost:3000"
+    origin = request.headers.get("origin") or "*"
     return JSONResponse(
         status_code=500,
         content={"detail": f"Internal Server Error: {str(exc)}"},
@@ -58,7 +59,7 @@ async def global_exception_handler(request, exc):
     )
 
 def _cors_headers(request: Request):
-    origin = request.headers.get("origin") or "http://localhost:3000"
+    origin = request.headers.get("origin") or "*"
     return {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Credentials": "true",

@@ -135,7 +135,7 @@ export const api = {
   searchAll: (q: string) =>
     withFallback(
       () => fetchJson<any>(`/api/search?q=${encodeURIComponent(q)}`),
-      () => ({ items: [] })
+      () => mockFallback.searchAll(q)
     ),
 
   listJobs: (params?: { district?: string; sector?: string; skill?: string }) => {
@@ -143,44 +143,44 @@ export const api = {
     Object.entries(params || {}).forEach(([key, value]) => { if (value && !value.startsWith("All")) query.append(key, value); });
     return withFallback(
       () => fetchJson<{ items: any[] }>(`/api/jobs?${query.toString()}`),
-      () => mockFallback.listJobs()
+      () => mockFallback.listJobs(params)
     );
   },
 
   createJob: (payload: Record<string, unknown>) =>
     withFallback(
       () => fetchJson<any>("/api/jobs", { method: "POST", body: JSON.stringify(payload) }),
-      () => ({ ok: true, job: payload })
+      () => mockFallback.createJob(payload)
     ),
 
   extractSkills: (description: string) =>
     withFallback(
       () => fetchJson<{ skills: string[]; source: string }>("/api/jobs/extract-skills", { method: "POST", body: JSON.stringify({ description }) }),
-      () => ({ skills: ["Skill Matching", "Technical Competency"], source: "SkillPulse Intelligent Extractor" })
+      () => mockFallback.extractSkills(description)
     ),
 
   listApplications: (stage?: string) =>
     withFallback(
       () => fetchJson<{ items: any[] }>(`/api/applications${stage ? `?stage=${encodeURIComponent(stage)}` : ""}`),
-      () => mockFallback.listApplications()
+      () => mockFallback.listApplications(stage)
     ),
 
   applyToJob: (jobId: string) =>
     withFallback(
       () => fetchJson<any>("/api/applications", { method: "POST", body: JSON.stringify({ job_id: jobId }) }),
-      () => ({ ok: true, application_id: "APP-" + Date.now() })
+      () => mockFallback.applyToJob(jobId)
     ),
 
   moveApplication: (id: string, status: string) =>
     withFallback(
       () => fetchJson<any>(`/api/applications/${id}/stage`, { method: "POST", body: JSON.stringify({ status }) }),
-      () => ({ ok: true, id, status })
+      () => mockFallback.moveApplication(id, status)
     ),
 
   createEmployer: (payload: Record<string, unknown>) =>
     withFallback(
       () => fetchJson<any>("/api/employers", { method: "POST", body: JSON.stringify(payload) }),
-      () => ({ ok: true })
+      () => mockFallback.createEmployer(payload)
     ),
 
   employerOverview: () =>
@@ -192,7 +192,7 @@ export const api = {
   recordOutcome: (payload: Record<string, unknown>) =>
     withFallback(
       () => fetchJson<any>("/api/employers/outcomes", { method: "POST", body: JSON.stringify(payload) }),
-      () => ({ ok: true })
+      () => mockFallback.recordOutcome(payload)
     ),
 
   dataQuality: () =>
@@ -428,13 +428,13 @@ export const api = {
   matchCandidates: (requirements: Record<string, unknown>) =>
     withFallback(
       () => fetchJson<any>("/api/employers/match", { method: "POST", body: JSON.stringify(requirements) }),
-      () => ({ matches: mockFallback.getTrainees().items.slice(0, 5) })
+      () => mockFallback.matchCandidates(requirements)
     ),
 
   getEmployers: () =>
     withFallback(
       () => fetchJson<{ notice: string; items: any[] }>("/api/employers"),
-      () => ({ notice: "Employer list", items: [] })
+      () => mockFallback.getEmployers()
     ),
 
   // Verification Summary
@@ -533,15 +533,7 @@ export const api = {
     const q = new URLSearchParams(params as any).toString();
     return withFallback(
       () => fetchJson<ReportData>(`/api/reports/generate?${q}`),
-      () =>
-        ({
-          id: "REP-" + Date.now(),
-          title: `${params.report_type || "Longitudinal Intelligence"} Report`,
-          created_at: new Date().toISOString(),
-          summary: "Comprehensive multi-cohort evaluation report with longitudinal employment and verification milestones.",
-          metrics: mockFallback.getKpis(),
-          sections: []
-        } as any)
+      () => mockFallback.generateReport(params) as unknown as ReportData
     );
   }
 };

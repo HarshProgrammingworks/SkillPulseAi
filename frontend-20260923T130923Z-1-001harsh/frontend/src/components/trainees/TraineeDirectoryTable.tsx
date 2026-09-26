@@ -228,7 +228,9 @@ export const TraineeDirectoryTable: React.FC<TraineeDirectoryTableProps> = ({
                   <td className="py-3 px-3 font-medium text-slate-700">{t.district}</td>
                   <td className="py-3 px-3 max-w-xs">
                     <div className="truncate font-semibold text-slate-800">{t.programme}</div>
-                    <div className="text-[10px] text-slate-500 font-medium">{t.skills_acquired[0]}</div>
+                    <div className="text-[10px] text-slate-500 font-medium">
+                      {t.skills_acquired?.[0] || t.target_skills?.[0] || "Vocational Trade"}
+                    </div>
                   </td>
                   <td className="py-3 px-3">
                     <span className="font-bold text-slate-900">{t.certification_score}%</span>

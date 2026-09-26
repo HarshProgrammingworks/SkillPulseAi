@@ -408,7 +408,7 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
                     <div className="p-2 rounded-lg bg-emerald-50/60 border border-emerald-200">
                       <span className="font-bold text-emerald-900 block mb-1">Acquired Skills</span>
                       <div className="flex flex-wrap gap-1">
-                        {trainee.skills_acquired.map((s) => (
+                        {(trainee.skills_acquired || []).map((s) => (
                           <span key={s} className="bg-white px-1.5 py-0.5 rounded text-emerald-800 text-[10px] font-medium border border-emerald-100">
                             {s}
                           </span>
@@ -419,7 +419,7 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
                     <div className="p-2 rounded-lg bg-sky-50/60 border border-sky-200">
                       <span className="font-bold text-sky-900 block mb-1">Actively Used</span>
                       <div className="flex flex-wrap gap-1">
-                        {trainee.skills_used.map((s) => (
+                        {(trainee.skills_used || []).map((s) => (
                           <span key={s} className="bg-white px-1.5 py-0.5 rounded text-sky-800 text-[10px] font-medium border border-sky-100">
                             {s}
                           </span>
@@ -430,7 +430,7 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
                     <div className="p-2 rounded-lg bg-rose-50/60 border border-rose-200">
                       <span className="font-bold text-rose-900 block mb-1">Missing / Gap</span>
                       <div className="flex flex-wrap gap-1">
-                        {trainee.skills_missing.map((s) => (
+                        {(trainee.skills_missing || []).map((s) => (
                           <span key={s} className="bg-white px-1.5 py-0.5 rounded text-rose-800 text-[10px] font-medium border border-rose-100">
                             {s}
                           </span>
@@ -441,7 +441,7 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
                     <div className="p-2 rounded-lg bg-purple-50/60 border border-purple-200">
                       <span className="font-bold text-purple-900 block mb-1">Recommended Next</span>
                       <div className="flex flex-wrap gap-1">
-                        {trainee.skills_recommended.map((s) => (
+                        {(trainee.skills_recommended || []).map((s) => (
                           <span key={s} className="bg-white px-1.5 py-0.5 rounded text-purple-800 text-[10px] font-medium border border-purple-100">
                             {s}
                           </span>

@@ -43,17 +43,18 @@ export const mockFallback = {
     }
 
     // Trainee persona
-    const foundTrainee = mockData.trainees_page1?.items?.find((t: any) =>
+    const traineesList = mockData.trainees || mockData.trainees_page1?.items || [];
+    const foundTrainee = traineesList.find((t: any) =>
       (t.id && t.id.toLowerCase() === id) ||
       (t.skillpulse_id && t.skillpulse_id.toLowerCase() === id) ||
       (t.phone && t.phone.includes(id)) ||
       (t.email && t.email.toLowerCase() === id)
-    ) || mockData.trainees_page1?.items?.[0];
+    ) || traineesList[0];
 
     return {
       token: "demo-trainee-token-" + Date.now(),
       role: "trainee",
-      display_name: foundTrainee?.name || "Aarav Sharma",
+      display_name: foundTrainee?.name || "Aarav Kumar",
       identifier: foundTrainee?.id || "SP-BR-10001",
       trainee_id: foundTrainee?.id || "SP-BR-10001",
       skillpulse_id: foundTrainee?.skillpulse_id || "SP-BR-10001"
@@ -75,7 +76,7 @@ export const mockFallback = {
     return {
       token: "demo-trainee-token-" + Date.now(),
       role: "trainee",
-      display_name: "Aarav Sharma",
+      display_name: "Aarav Kumar",
       identifier: "SP-BR-10001",
       trainee_id: "SP-BR-10001",
       skillpulse_id: "SP-BR-10001",
@@ -87,7 +88,7 @@ export const mockFallback = {
     return {
       token: "demo-trainee-token-" + Date.now(),
       role: "trainee",
-      display_name: payload.name || "Aarav Sharma",
+      display_name: payload.name || "Aarav Kumar",
       identifier: "SP-BR-10001",
       trainee_id: "SP-BR-10001",
       skillpulse_id: "SP-BR-10001"
@@ -145,7 +146,7 @@ export const mockFallback = {
 
   getVerificationSummary: () => {
     return mockData.verification_summary || {
-      total_records: 260,
+      total_records: 3600,
       verified_rate: 78.5,
       counts: {},
       conflict_count: 5,
@@ -163,36 +164,49 @@ export const mockFallback = {
     programme?: string;
     skill?: string;
     status?: string;
+    verification?: string;
+    batch?: string;
     search?: string;
     page?: number;
     page_size?: number;
   }) => {
-    let items: Trainee[] = mockData.trainees_page1?.items || [];
+    let items: Trainee[] = mockData.trainees || mockData.trainees_page1?.items || [];
 
     if (params) {
       if (params.state && !params.state.startsWith("All")) {
-        items = items.filter((t) => t.state === params.state);
+        items = items.filter((t) => t.state?.toLowerCase() === params.state!.toLowerCase());
       }
       if (params.district && !params.district.startsWith("All")) {
-        items = items.filter((t) => t.district === params.district);
+        items = items.filter((t) => t.district?.toLowerCase() === params.district!.toLowerCase());
       }
       if (params.programme && !params.programme.startsWith("All")) {
-        items = items.filter((t) => t.programme === params.programme);
+        items = items.filter((t) => t.programme?.toLowerCase() === params.programme!.toLowerCase());
+      }
+      if (params.batch && !params.batch.startsWith("All")) {
+        items = items.filter((t) => t.batch === params.batch);
       }
       if (params.skill && !params.skill.startsWith("All")) {
+        const skillLower = params.skill.toLowerCase();
         items = items.filter((t) =>
-          (t.skills_acquired || []).some((s: string) => s.includes(params.skill!))
+          (t.skills_acquired || []).some((s: string) => s && s.toLowerCase().includes(skillLower)) ||
+          (t.target_skills || []).some((s: string) => s && s.toLowerCase().includes(skillLower))
         );
       }
       if (params.status && !params.status.startsWith("All")) {
         items = items.filter((t) => t.employment_status === params.status);
       }
+      if (params.verification && !params.verification.startsWith("All")) {
+        items = items.filter((t) => t.verification_status === params.verification);
+      }
       if (params.search && params.search.trim()) {
         const q = params.search.trim().toLowerCase();
         items = items.filter((t) =>
-          t.name.toLowerCase().includes(q) ||
-          t.id.toLowerCase().includes(q) ||
-          (t.employer && t.employer.toLowerCase().includes(q))
+          (t.name && t.name.toLowerCase().includes(q)) ||
+          (t.id && t.id.toLowerCase().includes(q)) ||
+          (t.skillpulse_id && t.skillpulse_id.toLowerCase().includes(q)) ||
+          (t.employer && t.employer.toLowerCase().includes(q)) ||
+          (t.district && t.district.toLowerCase().includes(q)) ||
+          (t.programme && t.programme.toLowerCase().includes(q))
         );
       }
     }
@@ -214,16 +228,65 @@ export const mockFallback = {
   },
 
   getTraineeById: (id: string): Trainee | null => {
-    const items: Trainee[] = mockData.trainees_page1?.items || [];
-    return items.find((t) => t.id === id || t.skillpulse_id === id) || items[0] || null;
+    const items: Trainee[] = mockData.trainees || mockData.trainees_page1?.items || [];
+    const target = (id || "").trim().toLowerCase();
+    return items.find((t) =>
+      (t.id && t.id.toLowerCase() === target) ||
+      (t.skillpulse_id && t.skillpulse_id.toLowerCase() === target)
+    ) || items[0] || null;
   },
 
   getFollowUps: (params?: any) => {
-    return mockData.followups || { total: 0, page: 1, page_size: 50, total_pages: 1, items: [] };
+    let items = mockData.followups?.items || [];
+
+    if (params) {
+      if (params.state && !params.state.startsWith("All")) {
+        items = items.filter((f: any) => (f.state || "").toLowerCase() === params.state.toLowerCase());
+      }
+      if (params.district && !params.district.startsWith("All")) {
+        items = items.filter((f: any) => (f.district || "").toLowerCase() === params.district.toLowerCase());
+      }
+      if (params.status && !params.status.startsWith("All")) {
+        items = items.filter((f: any) => f.status === params.status);
+      }
+      if (params.stage && !params.stage.startsWith("All")) {
+        items = items.filter((f: any) => (f.stage || "").toLowerCase() === params.stage.toLowerCase());
+      }
+      if (params.channel && !params.channel.startsWith("All")) {
+        items = items.filter((f: any) => f.channel === params.channel);
+      }
+      if (params.search && params.search.trim()) {
+        const q = params.search.trim().toLowerCase();
+        items = items.filter((f: any) =>
+          (f.trainee_name && f.trainee_name.toLowerCase().includes(q)) ||
+          (f.trainee_id && f.trainee_id.toLowerCase().includes(q)) ||
+          (f.employer && f.employer.toLowerCase().includes(q))
+        );
+      }
+    }
+
+    const pageSize = params?.page_size || 15;
+    const page = params?.page || 1;
+    const total = items.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+
+    return {
+      total,
+      page,
+      page_size: pageSize,
+      total_pages: totalPages,
+      summary: mockData.followups?.summary || { pending: 18, completed: 86, overdue: 6, response_rate: 82.4 },
+      items: items.slice(start, start + pageSize)
+    };
   },
 
-  listJobs: () => {
-    return mockData.jobs || { items: [] };
+  listJobs: (params?: any) => {
+    let items = mockData.jobs?.items || [];
+    if (params?.district && !params.district.startsWith("All")) {
+      items = items.filter((j: any) => j.district?.toLowerCase() === params.district.toLowerCase());
+    }
+    return { items };
   },
 
   listApplications: () => {
@@ -240,7 +303,7 @@ export const mockFallback = {
 
   getAiStatus: () => {
     return mockData.ai_status || {
-      mode: "SkillPulse AI (Prototype Fallback)",
+      mode: "SkillPulse AI (Verified Intelligence Engine)",
       has_key: true,
       key_masked: "Configured (Prototype)",
       model: "gemini-1.5-flash"

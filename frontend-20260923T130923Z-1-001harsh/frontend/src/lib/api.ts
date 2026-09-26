@@ -69,7 +69,22 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   }
 }
 
+const shouldCallNetwork = (): boolean => {
+  if (typeof window === "undefined") return true;
+  const isHttps = window.location.protocol === "https:";
+  const isLocalHttp = API_BASE_URL.startsWith("http://127.0.0.1") || API_BASE_URL.startsWith("http://localhost");
+  // If running in browser on HTTPS (such as GitHub Pages) and backend is an insecure localhost URL,
+  // browsers block it as Mixed Content. Return false to use prototype fallback instantly.
+  if (isHttps && isLocalHttp) {
+    return false;
+  }
+  return true;
+};
+
 async function withFallback<T>(apiCall: () => Promise<T>, fallbackCall: () => T | Promise<T>): Promise<T> {
+  if (!shouldCallNetwork()) {
+    return await fallbackCall();
+  }
   try {
     return await apiCall();
   } catch (err) {

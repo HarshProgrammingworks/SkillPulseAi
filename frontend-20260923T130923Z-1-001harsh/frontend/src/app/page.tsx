@@ -68,6 +68,27 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
+  // Sync tab with URL query parameter on mount and when changed
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam) {
+        setCurrentTab(tabParam);
+      }
+    }
+  }, []);
+
+  const navigateTab = (tab: string) => {
+    setSelectedTrainee(null);
+    setCurrentTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
+
   // Independent Dashboard Filter State (Longitudinal Intelligence filters)
   const [dashboardFilters, setDashboardFilters] = useState({
     state: "All States",
@@ -515,10 +536,7 @@ export default function Home() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={(tab) => {
-          setSelectedTrainee(null);
-          setCurrentTab(tab);
-        }}
+        onSelectTab={navigateTab}
         isOpenMobile={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         userRole={roleLabel}
@@ -532,10 +550,7 @@ export default function Home() {
         {/* Top Navigation */}
         <TopNav
           currentTab={currentTab}
-          onNavigate={(tab) => {
-            setSelectedTrainee(null);
-            setCurrentTab(tab);
-          }}
+          onNavigate={navigateTab}
           aiStatus={aiStatus}
           onOpenAiAssistant={() => handleOpenAskAi()}
           onSearchSelectTrainee={async (traineeId) => {

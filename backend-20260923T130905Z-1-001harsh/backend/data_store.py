@@ -465,6 +465,9 @@ class DataStore:
                     showcase["_used"] = True
                     name = showcase["name"]
                     phone = showcase["phone"]
+                    f_name = name.split(" ")[0].lower()
+                    l_name = name.split(" ")[1].lower() if " " in name else "trainee"
+                    email = f"{f_name}.{l_name}@skillpulse.in"
                     sp_id = showcase["id"]
                     emp_status = showcase["status"]
                     duration = showcase["dur"]
@@ -478,27 +481,70 @@ class DataStore:
                     last_name = random.choice(last_names)
                     name = f"{first_name} {last_name}"
                     phone = f"9{random.randint(6, 9)}{random.randint(10000000, 99999999)}"
+                    email = f"{first_name.lower().replace(' ', '')}.{last_name.lower().replace(' ', '')}@skillpulse.in"
 
-                    # Funnel distribution: 62% employed, 12% self-employed, 8% apprenticeship, 6% further ed, 8% unemployed, 4% unknown
+                    # Differentiated funnel distribution per state (Requirement 4)
                     outcome_roll = random.random()
-                    if outcome_roll < 0.62:
-                        emp_status = EmploymentStatus.EMPLOYED
-                        duration = random.choice([3, 6, 8, 9, 12, 14, 16])
-                    elif outcome_roll < 0.74:
-                        emp_status = EmploymentStatus.SELF_EMPLOYED
-                        duration = random.choice([4, 6, 9, 12])
-                    elif outcome_roll < 0.82:
-                        emp_status = EmploymentStatus.APPRENTICESHIP
-                        duration = random.choice([2, 4, 6, 8])
-                    elif outcome_roll < 0.88:
-                        emp_status = EmploymentStatus.FURTHER_EDUCATION
-                        duration = 0
-                    elif outcome_roll < 0.96:
-                        emp_status = EmploymentStatus.UNEMPLOYED
-                        duration = 0
+                    if state == "Bihar":
+                        # Bihar: Higher self-employment in local repair/solar micro-enterprises
+                        if outcome_roll < 0.58:
+                            emp_status = EmploymentStatus.EMPLOYED
+                            duration = random.choice([3, 6, 8, 9, 12, 14])
+                        elif outcome_roll < 0.77:
+                            emp_status = EmploymentStatus.SELF_EMPLOYED
+                            duration = random.choice([4, 6, 9, 12])
+                        elif outcome_roll < 0.84:
+                            emp_status = EmploymentStatus.APPRENTICESHIP
+                            duration = random.choice([2, 4, 6])
+                        elif outcome_roll < 0.90:
+                            emp_status = EmploymentStatus.FURTHER_EDUCATION
+                            duration = 0
+                        elif outcome_roll < 0.97:
+                            emp_status = EmploymentStatus.UNEMPLOYED
+                            duration = 0
+                        else:
+                            emp_status = EmploymentStatus.UNKNOWN
+                            duration = 0
+                    elif state == "Uttar Pradesh":
+                        # Uttar Pradesh: Balanced trade, retail, and service cluster employment
+                        if outcome_roll < 0.61:
+                            emp_status = EmploymentStatus.EMPLOYED
+                            duration = random.choice([3, 6, 8, 9, 12, 14, 16])
+                        elif outcome_roll < 0.74:
+                            emp_status = EmploymentStatus.SELF_EMPLOYED
+                            duration = random.choice([4, 6, 9, 12])
+                        elif outcome_roll < 0.82:
+                            emp_status = EmploymentStatus.APPRENTICESHIP
+                            duration = random.choice([2, 4, 6, 8])
+                        elif outcome_roll < 0.88:
+                            emp_status = EmploymentStatus.FURTHER_EDUCATION
+                            duration = 0
+                        elif outcome_roll < 0.96:
+                            emp_status = EmploymentStatus.UNEMPLOYED
+                            duration = 0
+                        else:
+                            emp_status = EmploymentStatus.UNKNOWN
+                            duration = 0
                     else:
-                        emp_status = EmploymentStatus.UNKNOWN
-                        duration = 0
+                        # Maharashtra: High formal industrial auto/EV manufacturing placement
+                        if outcome_roll < 0.66:
+                            emp_status = EmploymentStatus.EMPLOYED
+                            duration = random.choice([3, 6, 9, 12, 14, 16, 18])
+                        elif outcome_roll < 0.76:
+                            emp_status = EmploymentStatus.SELF_EMPLOYED
+                            duration = random.choice([4, 6, 9, 12])
+                        elif outcome_roll < 0.85:
+                            emp_status = EmploymentStatus.APPRENTICESHIP
+                            duration = random.choice([3, 6, 8, 12])
+                        elif outcome_roll < 0.90:
+                            emp_status = EmploymentStatus.FURTHER_EDUCATION
+                            duration = 0
+                        elif outcome_roll < 0.97:
+                            emp_status = EmploymentStatus.UNEMPLOYED
+                            duration = 0
+                        else:
+                            emp_status = EmploymentStatus.UNKNOWN
+                            duration = 0
 
                     prog_info = matching_progs[i % len(matching_progs)]
                     primary_skill = prog_info["primary_skill"]
@@ -510,11 +556,26 @@ class DataStore:
                     employer = random.choice(emp_candidates) if emp_status == EmploymentStatus.EMPLOYED else None
                     job_role = f"{primary_skill} Specialist" if emp_status == EmploymentStatus.EMPLOYED else None
 
-                    # Wage calculation based on skill & district
+                    # Distinct state-based wage tiers
                     if emp_status == EmploymentStatus.EMPLOYED:
-                        base_wage = 18000 + (trn_idx % 7) * 1500
-                        if district in ("Pune", "Nagpur", "Lucknow", "Patna"):
-                            base_wage += 2500
+                        if state == "Maharashtra":
+                            base_wage = 20500 + (trn_idx % 8) * 1600
+                            if district == "Pune":
+                                base_wage += 3000
+                            elif district == "Nagpur":
+                                base_wage += 2200
+                        elif state == "Uttar Pradesh":
+                            base_wage = 17500 + (trn_idx % 7) * 1400
+                            if district == "Lucknow":
+                                base_wage += 2200
+                            elif district == "Varanasi":
+                                base_wage += 1500
+                        else: # Bihar
+                            base_wage = 16500 + (trn_idx % 6) * 1200
+                            if district == "Patna":
+                                base_wage += 1800
+                            elif district == "Muzaffarpur":
+                                base_wage += 1200
                         current_wage = base_wage
                     elif emp_status == EmploymentStatus.APPRENTICESHIP:
                         current_wage = 12000 + (trn_idx % 4) * 1000
@@ -533,7 +594,7 @@ class DataStore:
                 comp_dt = enrolled_dt + timedelta(days=90)
                 cert_score = 65 + (trn_idx % 30)
 
-                # Retention status calculation
+                # Retention status calculation with district-specific survival variations
                 if duration >= 12:
                     retention_status = RetentionStatus.RETAINED_12M
                     retention_risk = "Low"
@@ -672,17 +733,19 @@ class DataStore:
                     )
 
                 trainee_followups = []
-                for cp in checkpoints:
+                channels_cycle = [CommChannel.WHATSAPP, CommChannel.SMS, CommChannel.CALL_CENTRE, CommChannel.WEB, CommChannel.IVR]
+                for cp_idx, cp in enumerate(checkpoints):
                     stg = cp["stage"]
                     is_done = cp["status"] == "Confirmed"
                     fu_status = FollowUpStatus.COMPLETED if is_done else (FollowUpStatus.OVERDUE if (duration > 0 and not is_done and random.random() < 0.25) else FollowUpStatus.PENDING)
+                    fu_channel = channels_cycle[(trn_idx + cp_idx) % len(channels_cycle)]
                     
                     trainee_followups.append(
                         FollowUpRecord(
                             id=f"FU-{t_id}-{stg}",
                             stage=stg,
                             due_date="2026-03-12" if is_done else "2026-04-15",
-                            channel=CommChannel.WHATSAPP,
+                            channel=fu_channel,
                             status=fu_status,
                             completed_date="2026-03-12" if is_done else None,
                             employment_status=cp["employment_status"],
@@ -749,6 +812,7 @@ class DataStore:
                     preferred_channel=CommChannel.WHATSAPP,
                     career_events=career_events,
                     phone=phone,
+                    email=email,
                     skillpulse_id=sp_id,
                     sector=prog_info["sector"],
                     skill_profile=skill_profile,
@@ -922,6 +986,7 @@ class DataStore:
             preferred_channel=CommChannel.WHATSAPP,
             career_events=events,
             phone=payload.get("phone") or f"98{random.randint(10000000, 99999999)}",
+            email=payload.get("email") or f"{payload['name'].strip().lower().replace(' ', '.')}@skillpulse.in",
             skillpulse_id=skillpulse_id,
             sector=payload.get("sector") or "Technical Trades",
             skill_profile=[{"name": s, "level": skill_level, "verification": "Training Verified", "acquired_from": prog, "assessment_score": 80, "related_jobs": [payload.get("job_role")] if payload.get("job_role") else []} for s in skills],

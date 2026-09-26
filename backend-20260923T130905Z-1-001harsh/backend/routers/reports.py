@@ -26,12 +26,16 @@ async def generate_report(
     state: Optional[str] = "All States",
     district: Optional[str] = "All Districts",
     programme: Optional[str] = "All Programmes",
-    time_period: Optional[str] = "Last 6 Months"
+    time_period: Optional[str] = "Last 6 Months",
+    status: Optional[str] = "All Statuses",
+    employment: Optional[str] = "All Statuses"
 ) -> Dict[str, Any]:
+    status_filter = status if status and status not in ("All Statuses", "All", "") else (employment if employment and employment not in ("All Statuses", "All", "") else None)
     trainees = db.get_trainees(
         state=state if state and state not in ("All States", "All") else None,
         district=district if district != "All Districts" else None,
-        programme=programme if programme != "All Programmes" else None
+        programme=programme if programme != "All Programmes" else None,
+        status=status_filter
     )
     total = len(trainees)
     emp_count = sum(1 for t in trainees if t.employment_status in [EmploymentStatus.EMPLOYED, EmploymentStatus.SELF_EMPLOYED, EmploymentStatus.APPRENTICESHIP])

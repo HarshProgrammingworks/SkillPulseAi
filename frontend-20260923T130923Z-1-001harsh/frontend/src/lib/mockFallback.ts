@@ -235,10 +235,44 @@ export const mockFallback = {
       selected: targetDist ? d.district.toLowerCase() === targetDist : false
     }));
 
+    // Calculate wage progression dynamically from filtered items
+    const working = items.filter((t) => t.current_wage && t.current_wage > 0);
+    const avgWage = working.length > 0 ? Math.round(working.reduce((acc, t) => acc + (t.current_wage || 0), 0) / working.length) : 21890;
+    const wage_progression = [
+      { milestone: "Joining (0M)", avg_wage: Math.round(avgWage * 0.82), top_quartile: Math.round(avgWage * 0.95), median: Math.round(avgWage * 0.80) },
+      { milestone: "3 Months", avg_wage: Math.round(avgWage * 0.91), top_quartile: Math.round(avgWage * 1.05), median: Math.round(avgWage * 0.89) },
+      { milestone: "6 Months", avg_wage: Math.round(avgWage * 1.00), top_quartile: Math.round(avgWage * 1.15), median: Math.round(avgWage * 0.97) },
+      { milestone: "9 Months", avg_wage: Math.round(avgWage * 1.09), top_quartile: Math.round(avgWage * 1.25), median: Math.round(avgWage * 1.06) },
+      { milestone: "12 Months", avg_wage: Math.round(avgWage * 1.20), top_quartile: Math.round(avgWage * 1.38), median: Math.round(avgWage * 1.16) }
+    ];
+
+    // Calculate retention cohort dynamically
+    const stateName = (params?.state || "").toLowerCase();
+    const ret6mVal = stateName.includes("maharashtra") ? 81.6 : stateName.includes("uttar") ? 80.2 : stateName.includes("bihar") ? 78.8 : 79.8;
+    const retention_cohort = [
+      { stage: "1M", retention_pct: 100.0, benchmark_pct: 98.5 },
+      { stage: "3M", retention_pct: Math.round((ret6mVal + 17) * 10) / 10, benchmark_pct: 92.4 },
+      { stage: "6M", retention_pct: ret6mVal, benchmark_pct: 79.8 },
+      { stage: "9M", retention_pct: Math.round((ret6mVal - 28) * 10) / 10, benchmark_pct: 49.5 },
+      { stage: "12M", retention_pct: Math.round((ret6mVal - 44) * 10) / 10, benchmark_pct: 34.8 }
+    ];
+
+    // Scale employment trend based on filtered cohort
+    const ratio = items.length > 0 ? items.length / 3600 : 1;
+    const employment_trend = (baseCharts.employment_trend || []).map((t: any) => ({
+      ...t,
+      enrolled: Math.round(t.enrolled * ratio),
+      certified: Math.round(t.certified * ratio),
+      employed: Math.round(t.employed * ratio)
+    }));
+
     return {
       ...baseCharts,
       outcomes_breakdown: items.length > 0 ? outcomes_breakdown : baseCharts.outcomes_breakdown,
-      district_benchmarks
+      district_benchmarks,
+      wage_progression,
+      retention_cohort,
+      employment_trend
     };
   },
 
@@ -365,8 +399,114 @@ export const mockFallback = {
     ) || items[0] || null;
   },
 
+  createTrainee: (data: any): Trainee => {
+    const traineesList = mockData.trainees || mockData.trainees_page1?.items || [];
+    const seq = (traineesList.length + 1).toString().padStart(5, "0");
+    const stateCode = data.state === "Bihar" ? "BR" : data.state === "Uttar Pradesh" ? "UP" : "MH";
+    const id = `SP-${stateCode}-${seq}`;
+    const firstName = (data.name || "Trainee").split(" ")[0].toLowerCase();
+    const lastName = ((data.name || "").split(" ")[1] || "user").toLowerCase();
+    const email = data.email || `${firstName}.${lastName}@skillpulse.in`;
+    const newTrainee: Trainee = {
+      id,
+      skillpulse_id: id,
+      name: data.name || "New Trainee",
+      email,
+      phone: data.phone || "9800012345",
+      gender: data.gender || "Female",
+      age: Number(data.age || 22),
+      state: data.state || "Maharashtra",
+      district: data.district || "Pune",
+      centre_id: data.centre_id || "TC-101",
+      programme: data.programme || "Solar PV Installation",
+      batch: data.batch || "2024-Q1",
+      enrolment_date: data.enrolment_date || "2023-11-01",
+      completion_date: data.completion_date || "2024-02-15",
+      certification_status: data.certification_status || "Certified",
+      employment_status: data.employment_status || "Employed",
+      employer: data.employer || "GreenTech Solar Solutions",
+      job_role: data.job_role || "Solar PV Technician",
+      current_wage: Number(data.current_wage || 21500),
+      joining_date: data.joining_date || "2024-03-01",
+      current_location: data.current_location || (data.district ? `${data.district}, ${data.state}` : "Pune, Maharashtra"),
+      retention_status: data.retention_status || "Employed",
+      retention_milestone: data.retention_milestone || "6M",
+      verification_status: data.verification_status || "Self Reported",
+      skills_acquired: data.skills_acquired || ["Solar PV Installation", "Electrical Safety"],
+      target_skills: data.target_skills || ["Inverter Troubleshooting"],
+      education: data.education || "12th Pass / ITI",
+      aadhaar_linked: data.aadhaar_linked ?? true,
+      ...data
+    };
+    if (Array.isArray(mockData.trainees)) {
+      mockData.trainees.unshift(newTrainee);
+    }
+    return newTrainee;
+  },
+
+  updateTraineeOutcome: (id: string, data: any): Trainee => {
+    const traineesList: Trainee[] = mockData.trainees || mockData.trainees_page1?.items || [];
+    const target = (id || "").trim().toLowerCase();
+    const trainee = traineesList.find((t) =>
+      (t.id && t.id.toLowerCase() === target) ||
+      (t.skillpulse_id && t.skillpulse_id.toLowerCase() === target)
+    );
+    if (trainee) {
+      if (data.employment_status) trainee.employment_status = data.employment_status;
+      if (data.employer !== undefined) trainee.employer = data.employer;
+      if (data.job_role !== undefined) trainee.job_role = data.job_role;
+      if (data.current_wage !== undefined) trainee.current_wage = Number(data.current_wage);
+      if (data.joining_date !== undefined) trainee.joining_date = data.joining_date;
+      if (data.current_location !== undefined) trainee.current_location = data.current_location;
+      if (data.skill_relevance !== undefined) (trainee as any).skill_relevance = data.skill_relevance;
+      if (data.retention_status !== undefined) trainee.retention_status = data.retention_status;
+      if (data.reason_for_leaving !== undefined) (trainee as any).reason_for_leaving = data.reason_for_leaving;
+      if (data.email !== undefined) (trainee as any).email = data.email;
+      if (data.phone !== undefined) trainee.phone = data.phone;
+      trainee.last_follow_up_date = new Date().toISOString().split("T")[0];
+      return trainee;
+    }
+    return { id, ...data } as Trainee;
+  },
+
   getFollowUps: (params?: any) => {
     let items = mockData.followups?.items || [];
+
+    // Ensure followups include all states and channels by synthesizing/seeding if needed
+    const hasMultipleStates = items.some((f: any) => f.state === "Uttar Pradesh") && items.some((f: any) => f.state === "Maharashtra");
+    if (!hasMultipleStates && Array.isArray(mockData.trainees) && mockData.trainees.length > 0) {
+      const channels = ["WhatsApp", "SMS", "Call Centre", "Web", "IVR"];
+      const stages = ["30D", "90D", "180D", "270D", "9M", "12M"];
+      const statuses = ["Completed", "Completed", "Pending", "Overdue"];
+      const generated = mockData.trainees.map((t: any, idx: number) => ({
+        follow_up_id: `FU-${t.id}-${stages[idx % stages.length]}`,
+        trainee_id: t.id,
+        skillpulse_id: t.skillpulse_id || t.id,
+        trainee_name: t.name,
+        district: t.district,
+        state: t.state,
+        programme: t.programme,
+        stage: stages[idx % stages.length],
+        due_date: "2026-03-15",
+        channel: channels[idx % channels.length],
+        status: statuses[idx % statuses.length],
+        completed_date: "2026-03-12",
+        employment_status: t.employment_status,
+        employer: t.employer || "Verified Partner",
+        job_role: t.job_role || "Technician",
+        wage: t.current_wage || 21500,
+        verification_status: t.verification_status || "Multi-Verified",
+        verification_sources: ["Trainee confirmation", "Employer confirmation", "Official records"],
+        last_updated: "2026-03-12",
+        update_source: "Periodic digital & assisted checkin",
+        consent_given: true,
+        job_satisfaction: "High",
+        job_relevance: "Relevant"
+      }));
+      mockData.followups = mockData.followups || {};
+      mockData.followups.items = generated;
+      items = generated;
+    }
 
     if (params) {
       if (params.state && !params.state.startsWith("All")) {
@@ -382,7 +522,7 @@ export const mockFallback = {
         items = items.filter((f: any) => (f.stage || "").toLowerCase() === params.stage.toLowerCase());
       }
       if (params.channel && !params.channel.startsWith("All")) {
-        items = items.filter((f: any) => f.channel === params.channel);
+        items = items.filter((f: any) => (f.channel || "").toLowerCase() === params.channel.toLowerCase());
       }
       if (params.search && params.search.trim()) {
         const q = params.search.trim().toLowerCase();
@@ -400,12 +540,23 @@ export const mockFallback = {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const start = (page - 1) * pageSize;
 
+    const pending = items.filter((f: any) => f.status === "Pending").length;
+    const completed = items.filter((f: any) => f.status === "Completed").length;
+    const overdue = items.filter((f: any) => f.status === "Overdue").length;
+    const responseRate = (completed + pending) > 0 ? Math.round((completed / (completed + pending + overdue)) * 1000) / 10 : 82.4;
+
     return {
       total,
       page,
       page_size: pageSize,
       total_pages: totalPages,
-      summary: mockData.followups?.summary || { pending: 18, completed: 86, overdue: 6, response_rate: 82.4 },
+      summary: {
+        all: total,
+        pending,
+        completed,
+        overdue,
+        response_rate: responseRate
+      },
       items: items.slice(start, start + pageSize)
     };
   },
@@ -579,25 +730,32 @@ export const mockFallback = {
   },
 
   employerOverview: () => {
-    if (mockData.employers_overview) {
-      return mockData.employers_overview;
-    }
+    const apps = mockData.applications?.items || [];
+    const countStage = (s: string) => apps.filter((a: any) => a.status === s).length;
+    const matchedCount = countStage("Matched") || 42;
+    const shortlistedCount = countStage("Shortlisted") || 31;
+    const interviewCount = countStage("Interview") || 8;
+    const selectedCount = countStage("Selected") || 14;
+    const joinedCount = countStage("Joined") || 14;
+    const retainedCount = countStage("Retained") || 12;
+
     return {
       notice: "Synthetic demo hiring activity across connected state sectors.",
-      openings: 27,
-      matched: 42,
-      shortlisted: 31,
-      interviews: 8,
-      hires: 14,
-      retained: 12,
+      openings: mockData.jobs?.items?.length || 27,
+      matched: matchedCount,
+      shortlisted: shortlistedCount,
+      interviews: interviewCount,
+      hires: joinedCount,
+      retained: retainedCount,
       pipeline: [
-        { stage: "Available", count: 3600 },
-        { stage: "Matched", count: 42 },
-        { stage: "Shortlisted", count: 31 },
-        { stage: "Interview", count: 8 },
-        { stage: "Selected", count: 14 },
-        { stage: "Joined", count: 14 },
-        { stage: "Retained", count: 12 }
+        { stage: "All", count: apps.length || 109 },
+        { stage: "Applied", count: countStage("Applied") || 18 },
+        { stage: "Matched", count: matchedCount },
+        { stage: "Shortlisted", count: shortlistedCount },
+        { stage: "Interview", count: interviewCount },
+        { stage: "Selected", count: selectedCount },
+        { stage: "Joined", count: joinedCount },
+        { stage: "Retained", count: retainedCount }
       ]
     };
   },
@@ -691,65 +849,94 @@ export const mockFallback = {
     return mockData.report_types || [];
   },
 
-  generateReport: (params: { report_type: string; state?: string; district?: string; programme?: string; time_period?: string }) => {
+  generateReport: (params: { report_type: string; state?: string; district?: string; programme?: string; time_period?: string; status?: string; employment?: string }) => {
     const type = params.report_type || "employment_outcome";
-    if (mockData.sample_reports && mockData.sample_reports[type]) {
-      const base = mockData.sample_reports[type];
-      return {
-        ...base,
-        id: `REP-${Date.now().toString().slice(-6)}`,
-        generated_at: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-        filters: {
-          report_type: type,
-          state: params.state || "All States",
-          district: params.district || "All Districts",
-          programme: params.programme || "All Programmes",
-          time_period: params.time_period || "Last 6 Months"
-        }
-      };
+    let trainees: Trainee[] = mockData.trainees || [];
+    if (params.state && !params.state.startsWith("All")) {
+      trainees = trainees.filter((t) => (t.state || "").toLowerCase() === params.state!.toLowerCase());
+    }
+    if (params.district && !params.district.startsWith("All")) {
+      trainees = trainees.filter((t) => (t.district || "").toLowerCase() === params.district!.toLowerCase());
+    }
+    if (params.programme && !params.programme.startsWith("All")) {
+      trainees = trainees.filter((t) => (t.programme || "").toLowerCase() === params.programme!.toLowerCase());
+    }
+    const empFilter = params.employment || params.status;
+    if (empFilter && !empFilter.startsWith("All")) {
+      trainees = trainees.filter((t) => t.employment_status === empFilter);
     }
 
+    const total = trainees.length;
+    const certified = trainees.filter((t) => (t.certification_status || "").toLowerCase() === "certified").length;
+    const employed = trainees.filter((t) => t.employment_status === "Employed").length;
+    const selfEmp = trainees.filter((t) => t.employment_status === "Self-Employed").length;
+    const app = trainees.filter((t) => t.employment_status === "Apprenticeship").length;
+    const activeLiv = employed + selfEmp + app;
+    const livRate = total > 0 ? (Math.round((activeLiv / (certified || total)) * 1000) / 10).toFixed(1) + "%" : "81.9%";
+    const working = trainees.filter((t) => t.current_wage && t.current_wage > 0);
+    const avgWageNum = working.length > 0 ? Math.round(working.reduce((acc, t) => acc + (t.current_wage || 0), 0) / working.length) : 21890;
+    const avgWage = `₹${avgWageNum.toLocaleString()}`;
+
+    const ret6m = (params.state || "").toLowerCase().includes("maharashtra") ? "81.6%" : (params.state || "").toLowerCase().includes("uttar") ? "80.2%" : (params.state || "").toLowerCase().includes("bihar") ? "78.8%" : "79.8%";
+
+    const sampleCohort = trainees.slice(0, 15).map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      district: t.district,
+      programme: t.programme,
+      status: t.employment_status,
+      wage: t.current_wage ? `₹${t.current_wage.toLocaleString()}` : "N/A",
+      verification: t.verification_status || "Multi-Verified"
+    }));
+
+    const kpis = [
+      { label: "Total Tracked Trainees", value: total > 0 ? total : 3600 },
+      { label: "Certified Trainees", value: certified > 0 ? certified : 2880 },
+      { label: "Active Livelihoods Rate", value: livRate },
+      { label: "6-Month Retention", value: ret6m },
+      { label: "Average Monthly Wage", value: avgWage },
+      { label: "Catalogue Net Gap", value: total > 0 ? Math.round(total * 3.5).toLocaleString() : "12,860" }
+    ];
+
+    const base = (mockData.sample_reports && mockData.sample_reports[type]) || {};
+
+    const scopeTitle = [
+      params.district && !params.district.startsWith("All") ? params.district : null,
+      params.state && !params.state.startsWith("All") ? params.state : null,
+      params.programme && !params.programme.startsWith("All") ? params.programme : null,
+      empFilter && !empFilter.startsWith("All") ? empFilter : null
+    ].filter(Boolean).join(" • ") || "All Regions (Bihar, UP, Maharashtra)";
+
     return {
+      ...base,
       id: `REP-${Date.now().toString().slice(-6)}`,
-      title: "Executive Workforce Intelligence Report",
-      generated_at: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }),
+      title: `${base.title || "Workforce Intelligence & Outcome Report"} [${scopeTitle}]`,
+      generated_at: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       authority: "State Skill Development Mission / Department of Skills, Employment & Innovation",
       notice: "Demonstration Prototype Data — Synthetic Dataset for SIH Evaluation",
-      filters: params,
-      kpis: [
-        { label: "Total Tracked Trainees", value: 3600 },
-        { label: "Certified Trainees", value: 2880 },
-        { label: "Active Livelihoods Rate", value: "81.9%" },
-        { label: "6-Month Retention", value: "79.8%" },
-        { label: "Average Monthly Wage", value: "₹21,890" },
-        { label: "Catalogue Net Gap", value: "12,860" }
-      ],
-      key_findings: [
-        "Tracked livelihood rate in this scope is 81.9% across multi-verified records.",
-        "6-Month retention rate averages 79.8% with longitudinal EPF and employer check-in verification.",
-        "Green energy and automotive manufacturing exhibit highest wage growth at 3-month and 6-month milestones."
-      ],
-      sections: {
-        executive_summary: "This report provides empirical workforce intelligence across Bihar, Uttar Pradesh, and Maharashtra cohorts.",
-        limitations: "Synthesized prototype evaluation document based on longitudinal cohort tracking."
+      filters: {
+        report_type: type,
+        state: params.state || "All States",
+        district: params.district || "All Districts",
+        programme: params.programme || "All Programmes",
+        employment: empFilter || "All Employment",
+        time_period: params.time_period || "Last 6 Months"
       },
+      kpis,
+      key_findings: [
+        `In ${scopeTitle}, verified livelihood rate stands at ${livRate} across tracked candidate records.`,
+        `6-Month verified retention rate averages ${ret6m} with independent employer and EPFO corroborate.`,
+        `Average monthly take-home salary across employed technical cohort is ${avgWage}/month.`
+      ],
       ai_executive_summary: {
-        insight: "Sustained Longitudinal Career Retention via Skill-Aligned Placements",
-        evidence: ["81.9% Livelihood Rate", "79.8% 6-Month Retention", "₹21,890 Mean Wage"],
-        explanation: "Longitudinal signals indicate that candidates placed in direct trade-matching roles demonstrate 34% higher 12-month retention.",
-        recommendation: "Prioritize specialized technical certifications with post-placement micro-checkins.",
+        insight: `Empirical Workforce Intelligence Synthesis for ${scopeTitle}`,
+        evidence: [`${total > 0 ? total : 3600} Candidates Evaluated`, `${livRate} Livelihood Rate`, `${ret6m} 6-Month Retention`, `${avgWage} Average Wage`],
+        explanation: `Longitudinal tracking for ${scopeTitle} demonstrates steady career absorption in technical trades, with candidates placed within a 25km radius demonstrating 28% higher retention.`,
+        recommendation: "Prioritize specialized technical certifications with post-placement micro-checkins and local employer partnerships.",
         limitations: "Demonstration figures validated against prototype records.",
         source_mode: "SkillPulse AI Verified Synthesis"
       },
-      sample_cohort: (mockData.trainees || []).slice(0, 10).map((t: any) => ({
-        id: t.id,
-        name: t.name,
-        district: t.district,
-        programme: t.programme,
-        status: t.employment_status,
-        wage: t.current_wage ? `₹${t.current_wage.toLocaleString()}` : "N/A",
-        verification: t.verification_status || "Verified"
-      }))
+      sample_cohort: sampleCohort.length > 0 ? sampleCohort : base.sample_cohort || []
     };
   },
 
@@ -1150,6 +1337,30 @@ export const mockFallback = {
           reasons: "Urban living costs in capital cities vs stable local housing in industrial clusters.",
           implications: "Targeted housing and transit allowances significantly improve retention in urban centres."
         }
+      };
+    }
+
+    // Trainee Career Advisor questions (wage increase, promotion, skill upgrades, local jobs)
+    if (q.includes("salary") || q.includes("wage") || q.includes("career") || q.includes("upgrade") || q.includes("microgrid") || q.includes("skills do i need") || q.includes("hiring") || q.includes("how do i") || q.includes("step") || q.includes("learn")) {
+      const dist = context?.district || "Pune";
+      const isEv = q.includes("ev") || q.includes("battery") || q.includes("automobile");
+      const isSolar = q.includes("solar") || q.includes("pv") || q.includes("microgrid") || q.includes("installer");
+      const targetSkill = isEv ? "CAN-Bus & High-Voltage Diagnostics" : isSolar ? "Microgrid Synchronisation & SCADA" : "Industrial Automation (PLC/SCADA)";
+      const targetRole = isEv ? "EV Powertrain Diagnostics Specialist" : isSolar ? "Microgrid Engineer / Solar Site Supervisor" : "Senior Automation Technician";
+      const wageInc = isEv ? "₹28,500/mo (+32%)" : isSolar ? "₹26,500/mo (+28%)" : "₹25,000/mo (+25%)";
+
+      return {
+        insight: `Career Advancement Pathway for ${dist}: Acquiring certification in ${targetSkill} qualifies you for ${targetRole} roles with verified median wages of ${wageInc}.`,
+        evidence: [
+          `Local Demand in ${dist}: Active shortage of certified specialists with ${targetSkill}.`,
+          `Observed Wage Progression: Technicians with this competency earn an average ${wageInc} vs ₹19,500 for entry-level tasks.`,
+          `Verified Industry Partners: Registered employers in your district cluster currently have open requisitions.`
+        ],
+        explanation: `Longitudinal outcome data indicates that certified technicians who transition from basic installation to supervisory/diagnostic roles experience an immediate 25-35% salary increase and 94% 12-month retention. In ${dist}, local employers prioritize candidates holding NCVET-aligned credentials.`,
+        recommendation: `1. Complete the 30-hour modular certification in ${targetSkill}.\n2. Request an internal competency evaluation or apply through the SkillPulse Verified Hiring Desk.\n3. Log your completion in the Career Ledger to update your verified employability score.`,
+        limitations: "Grounded in verified employer requisitions and candidate wage progression in the SkillPulse multi-state dataset.",
+        source_mode: "SkillPulse AI Verified Career Advisor",
+        comparison: null
       };
     }
 

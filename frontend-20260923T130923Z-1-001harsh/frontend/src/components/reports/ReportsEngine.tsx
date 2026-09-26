@@ -24,6 +24,8 @@ interface ReportsEngineProps {
     district?: string;
     programme?: string;
     time_period?: string;
+    status?: string;
+    employment?: string;
   }) => Promise<ReportData>;
   districtsList: string[];
   programmesList: string[];
@@ -39,6 +41,7 @@ export const ReportsEngine: React.FC<ReportsEngineProps> = ({
   const [selectedState, setSelectedState] = useState("All States");
   const [selectedDistrict, setSelectedDistrict] = useState<string>("All Districts");
   const [selectedProgramme, setSelectedProgramme] = useState<string>("All Programmes");
+  const [selectedEmployment, setSelectedEmployment] = useState<string>("All Statuses");
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>("Last 6 Months");
   const [activeReport, setActiveReport] = useState<ReportData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -55,6 +58,7 @@ export const ReportsEngine: React.FC<ReportsEngineProps> = ({
         state: selectedState,
         district: selectedDistrict,
         programme: selectedProgramme,
+        employment: selectedEmployment,
         time_period: selectedTimePeriod
       });
       setActiveReport(data);
@@ -94,7 +98,7 @@ export const ReportsEngine: React.FC<ReportsEngineProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 text-xs mb-4">
           <div>
             <label className="block font-bold text-slate-700 mb-1">Report Classification</label>
             <select
@@ -126,6 +130,22 @@ export const ReportsEngine: React.FC<ReportsEngineProps> = ({
                   {p}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Employment Status</label>
+            <select
+              value={selectedEmployment}
+              onChange={(e) => setSelectedEmployment(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2.5 text-xs focus:outline-none"
+            >
+              <option value="All Statuses">All Employment</option>
+              <option value="Employed">Employed</option>
+              <option value="Self-Employed">Self-Employed</option>
+              <option value="Apprenticeship">Apprenticeship</option>
+              <option value="Unemployed">Unemployed</option>
+              <option value="Further Education">Further Education</option>
             </select>
           </div>
 

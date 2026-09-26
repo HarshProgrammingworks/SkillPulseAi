@@ -221,7 +221,7 @@ export const api = {
   createTrainee: (data: Record<string, unknown>) =>
     withFallback(
       () => fetchJson<Trainee>("/api/trainees", { method: "POST", body: JSON.stringify(data) }),
-      () => ({ ...(mockFallback.getTrainees().items[0] || {}), ...(data as any), id: "SP-TR-" + Date.now() } as Trainee)
+      () => mockFallback.createTrainee(data)
     ),
 
   getTrainees: (params?: {
@@ -277,6 +277,8 @@ export const api = {
       skill_relevance?: string;
       retention_status?: RetentionStatus;
       reason_for_leaving?: string;
+      email?: string;
+      phone?: string;
     }
   ) =>
     withFallback(
@@ -285,7 +287,7 @@ export const api = {
           method: "POST",
           body: JSON.stringify(data)
         }),
-      () => ({ ...(mockFallback.getTraineeById(id) || {}), ...data } as Trainee)
+      () => mockFallback.updateTraineeOutcome(id, data)
     ),
 
   updateVerification: (
@@ -576,10 +578,15 @@ export const api = {
       () => mockFallback.getReportTypes()
     ),
 
-  generateReport: (params: { report_type: string; state?: string; district?: string; programme?: string; time_period?: string }) => {
-    const q = new URLSearchParams(params as any).toString();
+  generateReport: (params: { report_type: string; state?: string; district?: string; programme?: string; time_period?: string; status?: string; employment?: string }) => {
+    const q = new URLSearchParams();
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "" && !String(v).startsWith("All ") && v !== "All") {
+        q.append(k, String(v));
+      }
+    });
     return withFallback(
-      () => fetchJson<ReportData>(`/api/reports/generate?${q}`),
+      () => fetchJson<ReportData>(`/api/reports/generate?${q.toString()}`),
       () => mockFallback.generateReport(params) as unknown as ReportData
     );
   }

@@ -134,6 +134,10 @@ export const TopNav: React.FC<TopNavProps> = ({
         return "AI-Assisted Policy Insights & Decision Support";
       case "reports":
         return "Executive Workforce Outcome Reports";
+      case "quality":
+        return "Data Quality & Multi-Verification Audit";
+      case "verification":
+        return "Independent Verification & Conflict Resolution";
       case "settings":
         return "Platform Settings & Privacy-by-Design";
       case "overview":

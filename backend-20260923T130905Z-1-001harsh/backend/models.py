@@ -190,6 +190,8 @@ class UpdateOutcomeRequest(BaseModel):
     skill_relevance: Optional[str] = None
     retention_status: Optional[RetentionStatus] = None
     reason_for_leaving: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
     updated_by: Optional[str] = "Govt Skill Officer"
 
 class UpdateVerificationRequest(BaseModel):

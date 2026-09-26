@@ -18,9 +18,8 @@ except Exception:
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
-# Gemini Flash models available on Google AI Studio
-# Priority: gemini-2.5-flash -> gemini-1.5-flash -> gemini-2.0-flash -> gemini-1.5-pro
-GEMINI_MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-flash-latest"]
+# Active Gemini Flash models supported on Google AI Studio
+GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"]
 
 class GeminiService:
     def __init__(self):

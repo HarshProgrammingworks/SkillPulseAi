@@ -223,7 +223,10 @@ export const TraineeDirectoryTable: React.FC<TraineeDirectoryTableProps> = ({
                   <td className="py-3 px-3 font-mono font-bold text-sky-800">{t.id}</td>
                   <td className="py-3 px-3">
                     <div className="font-bold text-slate-900 group-hover:text-sky-900">{t.name}</div>
-                    <div className="text-[10px] text-slate-400">{t.gender}, {t.age} yrs • {t.education}</div>
+                    <div className="text-[10px] text-slate-500">
+                      {t.email ? <span className="font-mono text-sky-700">{t.email} • </span> : null}
+                      {t.gender}, {t.age} yrs • {t.education}
+                    </div>
                   </td>
                   <td className="py-3 px-3 font-medium text-slate-700">{t.district}</td>
                   <td className="py-3 px-3 max-w-xs">

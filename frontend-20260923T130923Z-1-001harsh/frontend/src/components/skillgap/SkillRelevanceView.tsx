@@ -232,6 +232,51 @@ const SAMPLE_TRAINEE_OUTCOMES: TraineeJobOutcome[] = [
     district: "Patna",
     trainingCentre: "Patna ITI & Renewable Hub",
     employer: "Pending Confirmation"
+  },
+  {
+    id: "TRN-013",
+    traineeName: "Rakesh Ranjan",
+    trainedSkill: "Electrician",
+    currentRole: "Electrical Maintenance Technician",
+    relevance: "Highly Relevant",
+    employmentStatus: "Employed",
+    verificationStatus: "Employer Verified",
+    retention: "Retained 6M+",
+    wage: 21200,
+    state: "Bihar",
+    district: "Muzaffarpur",
+    trainingCentre: "Tirhut Technical Centre",
+    employer: "Muzaffarpur Grid Works"
+  },
+  {
+    id: "TRN-014",
+    traineeName: "Sneha Jadhav",
+    trainedSkill: "CNC Operator",
+    currentRole: "CNC Machine Specialist",
+    relevance: "Highly Relevant",
+    employmentStatus: "Employed",
+    verificationStatus: "Multi-Verified",
+    retention: "Retained 12M+",
+    wage: 22800,
+    state: "Maharashtra",
+    district: "Nashik",
+    trainingCentre: "Nashik Engineering Cluster Hub",
+    employer: "Bosch Nashik Plant"
+  },
+  {
+    id: "TRN-015",
+    traineeName: "Aditya Pandey",
+    trainedSkill: "Solar Technician",
+    currentRole: "Rooftop PV Commissioning Lead",
+    relevance: "Highly Relevant",
+    employmentStatus: "Employed",
+    verificationStatus: "Multi-Verified",
+    retention: "Retained 6M+",
+    wage: 22400,
+    state: "Uttar Pradesh",
+    district: "Varanasi",
+    trainingCentre: "Kashi Industrial Academy",
+    employer: "Varanasi Solar Power Infra"
   }
 ];
 
@@ -284,6 +329,52 @@ export const SkillRelevanceView: React.FC<SkillRelevanceViewProps> = ({
     });
   }, [selectedState, selectedDistrict, relevanceFilter, skillFilter, searchTerm, sortField]);
 
+  // Dynamically compute relevance distribution metrics for current filtered dataset
+  const relevanceMetrics = useMemo(() => {
+    const dataset = filteredTrainees;
+    const total = dataset.length;
+    if (total === 0) {
+      return {
+        total: 0,
+        highlyRelevantPct: "0.0%",
+        relevantPct: "0.0%",
+        partiallyRelevantPct: "0.0%",
+        notRelevantPct: "0.0%",
+        insufficientDataPct: "0.0%",
+        overallRelevance: "0.0%",
+        avgScore: "0.0"
+      };
+    }
+
+    const highly = dataset.filter((t) => t.relevance === "Highly Relevant").length;
+    const rel = dataset.filter((t) => t.relevance === "Relevant").length;
+    const partial = dataset.filter((t) => t.relevance === "Partially Relevant").length;
+    const notRel = dataset.filter((t) => t.relevance === "Not Relevant").length;
+    const insuff = dataset.filter((t) => t.relevance === "Insufficient Data").length;
+
+    const highlyPct = ((highly / total) * 100).toFixed(1);
+    const relPct = ((rel / total) * 100).toFixed(1);
+    const partialPct = ((partial / total) * 100).toFixed(1);
+    const notRelPct = ((notRel / total) * 100).toFixed(1);
+    const insuffPct = ((insuff / total) * 100).toFixed(1);
+
+    // Meaningful relevance (Highly Relevant + Relevant)
+    const overall = (((highly + rel) / total) * 100).toFixed(1);
+    // Weighted index: 100 for Highly, 80 for Relevant, 50 for Partial, 15 for Not Relevant
+    const avg = (((highly * 100 + rel * 80 + partial * 50 + notRel * 15) / (total * 100)) * 100).toFixed(1);
+
+    return {
+      total,
+      highlyRelevantPct: `${highlyPct}%`,
+      relevantPct: `${relPct}%`,
+      partiallyRelevantPct: `${partialPct}%`,
+      notRelevantPct: `${notRelPct}%`,
+      insufficientDataPct: `${insuffPct}%`,
+      overallRelevance: `${overall}%`,
+      avgScore: `${avg} / 100`
+    };
+  }, [filteredTrainees]);
+
   // Generate AI Relevance Insight using Gemini endpoint
   const handleGenerateAiInsight = async () => {
     setIsGeneratingAi(true);
@@ -335,9 +426,9 @@ Do not fabricate any numbers. Use only the provided structured data.`;
       // Fallback structured insight directly grounded in payload
       setAiInsightText(
         `Based on ${filteredTrainees.length} verified candidate records across ${selectedState === "All States" ? "Maharashtra, Bihar, and Uttar Pradesh" : selectedState}:
-• 72.4% of placed trainees are employed in 'Highly Relevant' occupations directly aligned with their accredited trade syllabus, demonstrating high curriculum fidelity.
+• ${relevanceMetrics.overallRelevance} of placed trainees are employed in meaningful occupational alignments ('Highly Relevant' or 'Relevant') directly connected to their accredited trade syllabus.
 • Candidates in 'Highly Relevant' roles observe an average monthly wage of ₹25,100, compared to ₹15,400 for 'Partially Relevant' and ₹12,800 for 'Not Relevant' employment. Note: This represents an observed empirical correlation in the dataset rather than an isolated causal relationship.
-• 1 candidate record currently exhibits 'Insufficient Data' due to pending employer payroll signoff, flagged for verification triage in the Career Ledger.`
+• Candidate verification status confirms active field checks and employer verification, flagged for ongoing triage in the Career Ledger.`
       );
     } finally {
       setIsGeneratingAi(false);
@@ -375,7 +466,7 @@ Do not fabricate any numbers. Use only the provided structured data.`;
             </h3>
             <div className="flex items-center gap-2 text-xs">
               <span className="text-slate-500">Overall Relevance Rate:</span>
-              <strong className="text-emerald-700 font-mono font-black">92.7%</strong>
+              <strong className="text-emerald-700 font-mono font-black">{relevanceMetrics.overallRelevance}</strong>
             </div>
           </div>
 
@@ -386,7 +477,7 @@ Do not fabricate any numbers. Use only the provided structured data.`;
                 <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                 Highly Relevant
               </span>
-              <div className="text-2xl font-black text-emerald-950 font-mono">74.2%</div>
+              <div className="text-2xl font-black text-emerald-950 font-mono">{relevanceMetrics.highlyRelevantPct}</div>
               <p className="text-[11px] text-emerald-800">
                 Direct occupational alignment (e.g. EV tech to EV diagnostician)
               </p>
@@ -398,7 +489,7 @@ Do not fabricate any numbers. Use only the provided structured data.`;
                 <CheckCircle2 className="h-3 w-3 text-sky-600" />
                 Relevant
               </span>
-              <div className="text-2xl font-black text-sky-950 font-mono">18.5%</div>
+              <div className="text-2xl font-black text-sky-950 font-mono">{relevanceMetrics.relevantPct}</div>
               <p className="text-[11px] text-sky-800">
                 Uses substantial core skills in adjacent trade
               </p>
@@ -410,7 +501,7 @@ Do not fabricate any numbers. Use only the provided structured data.`;
                 <AlertTriangle className="h-3 w-3 text-amber-600" />
                 Partially Relevant
               </span>
-              <div className="text-2xl font-black text-amber-950 font-mono">4.8%</div>
+              <div className="text-2xl font-black text-amber-950 font-mono">{relevanceMetrics.partiallyRelevantPct}</div>
               <p className="text-[11px] text-amber-800">
                 General workplace or office skills utilized
               </p>
@@ -422,7 +513,7 @@ Do not fabricate any numbers. Use only the provided structured data.`;
                 <XCircle className="h-3 w-3 text-rose-600" />
                 Not Relevant
               </span>
-              <div className="text-2xl font-black text-rose-950 font-mono">2.1%</div>
+              <div className="text-2xl font-black text-rose-950 font-mono">{relevanceMetrics.notRelevantPct}</div>
               <p className="text-[11px] text-rose-800">
                 No relationship with accredited competency
               </p>
@@ -434,7 +525,7 @@ Do not fabricate any numbers. Use only the provided structured data.`;
                 <HelpCircle className="h-3 w-3 text-slate-400" />
                 Insufficient Data
               </span>
-              <div className="text-2xl font-black text-slate-700 font-mono">0.4%</div>
+              <div className="text-2xl font-black text-slate-700 font-mono">{relevanceMetrics.insufficientDataPct}</div>
               <p className="text-[11px] text-slate-500">
                 Unverified employment role / Pending call
               </p>
@@ -446,17 +537,17 @@ Do not fabricate any numbers. Use only the provided structured data.`;
             <div className="flex items-center gap-4">
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Overall Relevance</span>
-                <strong className="text-sm font-black text-slate-900 font-mono">92.7% Meaningful</strong>
+                <strong className="text-sm font-black text-slate-900 font-mono">{relevanceMetrics.overallRelevance} Meaningful</strong>
               </div>
               <div className="h-8 w-px bg-slate-200" />
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Relevant Employment</span>
-                <strong className="text-sm font-black text-emerald-700 font-mono">74.2% Exact Match</strong>
+                <strong className="text-sm font-black text-emerald-700 font-mono">{relevanceMetrics.highlyRelevantPct} Exact Match</strong>
               </div>
               <div className="h-8 w-px bg-slate-200" />
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Avg Relevance Score</span>
-                <strong className="text-sm font-black text-sky-800 font-mono">86.4 / 100</strong>
+                <strong className="text-sm font-black text-sky-800 font-mono">{relevanceMetrics.avgScore}</strong>
               </div>
             </div>
             <span className="text-[10px] text-slate-400">

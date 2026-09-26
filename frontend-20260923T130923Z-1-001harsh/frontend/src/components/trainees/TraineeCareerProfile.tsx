@@ -55,7 +55,9 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
     current_location: trainee.current_location || trainee.district,
     skill_relevance: trainee.skill_relevance || "High",
     retention_status: trainee.retention_status || "Retained 6M+",
-    reason_for_leaving: trainee.reason_for_leaving || ""
+    reason_for_leaving: trainee.reason_for_leaving || "",
+    email: trainee.email || "",
+    phone: trainee.phone || ""
   });
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -103,6 +105,12 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
                       <span className="flex items-center gap-1 text-sky-200">
                         <Building className="h-3.5 w-3.5 text-sky-400" /> {trainee.employer}
                       </span>
+                    </>
+                  )}
+                  {trainee.email && (
+                    <>
+                      <span>•</span>
+                      <span className="font-mono text-sky-200">{trainee.email}</span>
                     </>
                   )}
                   <span>•</span>
@@ -740,6 +748,29 @@ export const TraineeCareerProfile: React.FC<TraineeCareerProfileProps> = ({
                     type="text"
                     value={formData.job_role}
                     onChange={(e) => setFormData({ ...formData, job_role: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Candidate Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="trainee@skillpulse.in"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="9800012345"
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2.5 text-xs focus:outline-none"
                   />
                 </div>

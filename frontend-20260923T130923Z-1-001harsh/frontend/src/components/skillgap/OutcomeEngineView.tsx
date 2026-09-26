@@ -87,6 +87,12 @@ export const OutcomeEngineView: React.FC<OutcomeEngineViewProps> = ({
   const [selectedSkillTab, setSelectedSkillTab] = useState<string>(inspectedSkill || "EV Technician");
   const [activeGeoState, setActiveGeoState] = useState<string>(selectedState !== "All States" ? selectedState : "Maharashtra");
 
+  React.useEffect(() => {
+    if (selectedState !== "All States") {
+      setActiveGeoState(selectedState);
+    }
+  }, [selectedState]);
+
   // Aggregate high-level cohort calculations from filtered dataset
   const totals = useMemo(() => {
     if (filteredRecords.length === 0) {
@@ -243,12 +249,13 @@ export const OutcomeEngineView: React.FC<OutcomeEngineViewProps> = ({
     ];
   }, [totals]);
 
-  // Skill-level outcomes list
-  const availableSkills = Array.from(new Set(allRecords.map((r) => r.skill)));
+  // Skill-level outcomes list derived from active filtered scope
+  const activeRecords = filteredRecords.length > 0 ? filteredRecords : allRecords;
+  const availableSkills = Array.from(new Set(activeRecords.map((r) => r.skill)));
 
   const skillOutcomeMetrics = useMemo(() => {
     return availableSkills.map((sk) => {
-      const recs = allRecords.filter((r) => r.skill === sk);
+      const recs = activeRecords.filter((r) => r.skill === sk);
       const totalTrained = recs.reduce((a, b) => a + b.supply, 0);
       const totalCert = recs.reduce((a, b) => a + b.certified, 0);
       const totalEmp = recs.reduce((a, b) => a + Math.round((b.supply * b.employmentRate) / 100), 0);

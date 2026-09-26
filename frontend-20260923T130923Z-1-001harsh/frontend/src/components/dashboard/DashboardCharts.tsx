@@ -365,10 +365,21 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
               <div
                 key={d.district}
                 onClick={() => onSelectDistrict && onSelectDistrict(d.district)}
-                className="flex items-center justify-between p-2 rounded-lg border border-slate-100 hover:border-sky-300 hover:bg-sky-50/50 transition cursor-pointer"
+                className={`flex items-center justify-between p-2.5 rounded-lg border transition cursor-pointer ${
+                  d.selected
+                    ? "border-sky-500 bg-sky-50/80 shadow-xs ring-1 ring-sky-300"
+                    : "border-slate-100 hover:border-sky-300 hover:bg-sky-50/50"
+                }`}
               >
                 <div>
-                  <div className="font-bold text-xs text-slate-900">{d.district}</div>
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                    <span>{d.district}</span>
+                    {d.selected && (
+                      <span className="text-[9px] bg-sky-600 text-white px-1.5 py-0.2 rounded font-bold uppercase tracking-wider">
+                        Active Filter
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[10px] text-slate-500">
                     {d.trainees} trainees • Avg ₹{d.avg_wage.toLocaleString()}/mo
                   </div>

@@ -330,7 +330,8 @@ export default function Home() {
             district: dashboardFilters.district,
             state: dashboardFilters.state,
             programme: dashboardFilters.programme,
-            batch: dashboardFilters.batch
+            batch: dashboardFilters.batch,
+            status: dashboardFilters.status
           }),
           api.getAiInsights(dashboardFilters.district)
         ]);
@@ -631,6 +632,20 @@ export default function Home() {
                       const keep = stateChosen(v) && districtsFor(v).includes(prev.district);
                       return { ...prev, state: v, district: keep ? prev.district : "All Districts" };
                     });
+                  } else if (k === "district") {
+                    setDashboardFilters((prev) => {
+                      if (v !== "All Districts" && (!stateChosen(prev.state) || !districtsFor(prev.state).includes(v))) {
+                        let matchedState = prev.state;
+                        for (const [st, dists] of Object.entries(GEOGRAPHY)) {
+                          if (dists.includes(v)) {
+                            matchedState = st;
+                            break;
+                          }
+                        }
+                        return { ...prev, district: v, state: matchedState };
+                      }
+                      return { ...prev, district: v };
+                    });
                   } else {
                     setDashboardFilters((prev) => ({ ...prev, [k]: v }));
                   }
@@ -875,7 +890,13 @@ export default function Home() {
 
           {/* VIEW 10: Multi-Verification Audit Panel (accessible from nav/tour) */}
           {session.role === "admin" && currentTab === "quality" && (
-            <div className="space-y-6 animate-fadeIn"><DataQualityPanel /></div>
+            <div className="space-y-6 animate-fadeIn">
+              <DataQualityPanel
+                state={dashboardFilters.state}
+                district={dashboardFilters.district}
+                programme={dashboardFilters.programme}
+              />
+            </div>
           )}
 
           {session.role === "admin" && currentTab === "verification" && (

@@ -195,18 +195,25 @@ export const api = {
       () => mockFallback.recordOutcome(payload)
     ),
 
-  dataQuality: () =>
-    withFallback(
-      () => fetchJson<any>("/api/quality"),
-      () => ({ completeness: 98.2, accuracy: 96.4, timeliness: 94.8 })
-    ),
+  dataQuality: (params?: { state?: string; district?: string; programme?: string }) => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v && !v.startsWith("All")) query.append(k, v);
+      });
+    }
+    return withFallback(
+      () => fetchJson<any>(`/api/quality?${query.toString()}`),
+      () => mockFallback.dataQuality(params)
+    );
+  },
 
   geo: (params?: { state?: string; skill?: string }) => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => { if (value && !value.startsWith("All")) query.append(key, value); });
     return withFallback(
       () => fetchJson<{ notice: string; items: any[] }>(`/api/geo?${query.toString()}`),
-      () => ({ notice: "Geo intelligence fallback", items: [] })
+      () => mockFallback.geo(params)
     );
   },
 
@@ -343,7 +350,7 @@ export const api = {
     );
   },
 
-  getChartsData: (params?: { district?: string; state?: string; programme?: string; skill?: string; batch?: string }) => {
+  getChartsData: (params?: { district?: string; state?: string; programme?: string; skill?: string; batch?: string; status?: string }) => {
     const query = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -419,10 +426,7 @@ export const api = {
           method: "POST",
           body: JSON.stringify({ trainee_id: traineeId, stage, history })
         }),
-      () => ({
-        question: "Could you confirm your current monthly take-home salary and if you are receiving regular wage slips?",
-        topic: "Wage Verification"
-      })
+      () => mockFallback.nextFollowUpQuestion(traineeId, history, stage)
     ),
 
   matchCandidates: (requirements: Record<string, unknown>) =>
@@ -501,6 +505,49 @@ export const api = {
         })
       });
     } catch {
+      // Optional client direct Gemini API fallback if key is configured
+      const clientKey = typeof window !== "undefined"
+        ? (localStorage.getItem("skillpulse_gemini_key") || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "").trim()
+        : (process.env.NEXT_PUBLIC_GEMINI_API_KEY || "").trim();
+
+      if (clientKey) {
+        try {
+          const directRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${clientKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `You are the SkillPulse AI Workforce Intelligence Assistant for Bihar, UP, and Maharashtra. Return a JSON object with keys insight, evidence (array of 3 strings), explanation, recommendation, limitations for this question: ${question}`
+                  }]
+                }]
+              })
+            }
+          );
+          if (directRes.ok) {
+            const data = await directRes.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText) {
+              const cleaned = rawText.replace(/```json\n?|\n?```/g, "").trim();
+              const parsed = JSON.parse(cleaned);
+              return {
+                insight: parsed.insight || rawText.slice(0, 200),
+                evidence: Array.isArray(parsed.evidence) ? parsed.evidence : [rawText.slice(0, 100)],
+                explanation: parsed.explanation || rawText,
+                recommendation: parsed.recommendation || "Maintain longitudinal follow-up.",
+                limitations: "Live client-side Gemini generation.",
+                source_mode: "Google Gemini 1.5 Flash (Direct API)",
+                comparison: parsed.comparison || null
+              };
+            }
+          }
+        } catch (clientErr) {
+          console.warn("Direct Gemini client fallback error:", clientErr);
+        }
+      }
+
       return mockFallback.askAi(question, context);
     }
   },

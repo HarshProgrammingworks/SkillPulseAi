@@ -14,6 +14,6 @@ export function stateChosen(state: string) {
 }
 
 export function districtsFor(state: string) {
-  if (!stateChosen(state)) return [];
+  if (!stateChosen(state)) return ALL_DISTRICTS;
   return GEOGRAPHY[state] || [];
 }

@@ -142,9 +142,10 @@ def get_charts_data(
     state: Optional[str] = None,
     programme: Optional[str] = None,
     skill: Optional[str] = None,
-    batch: Optional[str] = None
+    batch: Optional[str] = None,
+    status: Optional[str] = None
 ) -> Dict[str, Any]:
-    trainees = db.get_trainees(district=district, state=state, programme=programme, skill=skill, batch=batch)
+    trainees = db.get_trainees(district=district, state=state, programme=programme, skill=skill, batch=batch, status=status)
     
     # 1. Outcomes breakdown
     status_counts = {}
@@ -217,8 +218,10 @@ def get_charts_data(
     ]
 
     district_benchmarks = []
-    for d_name in sorted({t.district for t in trainees if t.district}):
-        d_trainees = [t for t in trainees if t.district == d_name]
+    scope_state = state if state and state not in ("All States", "All", "") else None
+    benchmark_trainees = db.get_trainees(state=scope_state, programme=programme, skill=skill, batch=batch)
+    for d_name in sorted({t.district for t in benchmark_trainees if t.district}):
+        d_trainees = [t for t in benchmark_trainees if t.district == d_name]
         d_total = len(d_trainees)
         if d_total > 0:
             d_emp = sum(1 for t in d_trainees if t.employment_status in [EmploymentStatus.EMPLOYED, EmploymentStatus.SELF_EMPLOYED, EmploymentStatus.APPRENTICESHIP])
@@ -230,7 +233,8 @@ def get_charts_data(
                 "trainees": d_total,
                 "employment_rate": round((d_emp / d_total) * 100, 1),
                 "retention_6m": round((d_ret / max(1, d_emp)) * 100, 1),
-                "avg_wage": d_avg_wage
+                "avg_wage": d_avg_wage,
+                "selected": (d_name.lower() == district.lower()) if district and district not in ("All Districts", "All", "") else False
             })
 
     # 8. Reasons for Attrition / Non-Placement

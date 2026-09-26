@@ -186,7 +186,7 @@ export interface ChartDatasets {
   retention_cohort: { stage: string; retention_pct: number; benchmark_pct: number }[];
   skill_gaps: { skill: string; demand: number; supply: number; gap: number; status: string }[];
   job_demand: { sector: string; openings: number; growth_yoy: string }[];
-  district_benchmarks: { district: string; trainees: number; employment_rate: number; retention_6m: number; avg_wage: number }[];
+  district_benchmarks: { district: string; trainees: number; employment_rate: number; retention_6m: number; avg_wage: number; selected?: boolean }[];
   attrition_reasons: { reason: string; count: number; pct: number }[];
 }
 
